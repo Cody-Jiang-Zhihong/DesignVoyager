@@ -1,5 +1,26 @@
 # DesignVoyager --- Project Execution Plan
 
+## Current Repo State
+
+The active implementation now lives in `Prototype/`.
+
+Current `Prototype/` capabilities:
+
+- Multi-game pipeline with `board` and `card` modes
+- MCTS-based playtesting for both game modes
+- Cross-platform subprocess-based playtest execution for Windows and macOS
+- Runtime self-verification JSON reports under `Prototype/runtime_reports/`
+- Sample experiment write-up in `Prototype/board_experiment_record_and_report.md`
+
+Useful entry points:
+
+```bash
+python Prototype/main.py --game board
+python Prototype/main.py --game card
+python Prototype/demo_main.py --game board
+python Prototype/demo_main.py --game card
+```
+
 ## Overview
 
 This repository contains the implementation of **DesignVoyager**, a

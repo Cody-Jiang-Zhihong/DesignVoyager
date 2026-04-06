@@ -17,14 +17,17 @@ from base_game import BaseGame, PLAYER_1, PLAYER_2
 from compile_check import load_mechanic_fn
 from mcts_agent import MCTSAgent
 
-N_GAMES_BALANCE = 60
-N_GAMES_DEPTH = 40
+N_GAMES_BALANCE = 12
+N_GAMES_DEPTH = 12
 MAX_TURNS = 100
 GAME_TIMEOUT = 4.0
 
-BALANCE_MCTS_SIMS = 20
-DEPTH_STRONG_SIMS = 50
-DEPTH_WEAK_SIMS = 10
+# Recommended default budgets:
+# - balance: low-vs-low MCTS, enough games to reduce obvious noise
+# - depth: strong-vs-weak MCTS, with a clear simulation gap
+BALANCE_MCTS_SIMS = 24
+DEPTH_STRONG_SIMS = 64
+DEPTH_WEAK_SIMS = 16
 
 _last_runtime_report = {}
 
@@ -246,10 +249,15 @@ def _collect_balance_metrics(code: str = "", game_class=None) -> dict:
     state_changed = 0
     total_matches = N_GAMES_BALANCE
 
-    agent1_spec = {"kind": "mcts", "simulations": BALANCE_MCTS_SIMS}
-    agent2_spec = {"kind": "mcts", "simulations": BALANCE_MCTS_SIMS}
+    low_spec_a = {"kind": "mcts", "simulations": BALANCE_MCTS_SIMS}
+    low_spec_b = {"kind": "mcts", "simulations": BALANCE_MCTS_SIMS}
 
-    for _ in range(total_matches):
+    for game_index in range(total_matches):
+        # We alternate the seat assignment explicitly even though both agents use
+        # the same low MCTS budget, so the balance protocol stays symmetric and
+        # easy to explain in reports/slides.
+        agent1_spec = low_spec_a if game_index % 2 == 0 else low_spec_b
+        agent2_spec = low_spec_b if game_index % 2 == 0 else low_spec_a
         result = _run_game_safe(code, agent1_spec, agent2_spec, game_class=game_class)
         total_turns += result["turns"]
         multi_choice_turns += result["multi_choice_turns"]
