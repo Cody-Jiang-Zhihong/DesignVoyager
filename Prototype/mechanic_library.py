@@ -297,6 +297,13 @@ class MechanicLibrary:
         names = [m["mechanic_name"] for m in self.mechanics]
         return f"Library has {len(self.mechanics)} mechanics: {', '.join(names)}"
 
+    def clear(self):
+        self.mechanics = []
+        self._context_use_count = {}
+        if os.path.exists(self.filepath):
+            os.remove(self.filepath)
+        print(f"[Library] Cleared. {self.filepath} deleted.")
+
 
 # ── Test ──────────────────────────────────────────────────────────────────────
 

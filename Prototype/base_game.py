@@ -1,20 +1,21 @@
 """
 base_game.py
 ============
-The starting game skeleton for DesignVoyager.
+The starting board-game skeleton for DesignVoyager.
 
 A simple two-player grid game: players take turns placing pieces,
 first to get 4 in a row (horizontal, vertical, or diagonal) wins.
 Think Connect-4 but on a flat 6x6 board without gravity.
 
-This is the "blank canvas" that the Proposal Module adds mechanics to
-over time.
+This implementation now also satisfies DesignVoyager's GameInterface
+so the wider pipeline can treat it the same way as other game types.
 """
 
 import copy
 import random
 import numpy as np
 from boardwalk import Board, Game, AIPlayer, is_placement, get_move_elements
+from game_interface import GameInterface, GameAgent
 
 
 # Player identifiers
@@ -25,7 +26,7 @@ WIN_LENGTH = 4
 BOARD_SIZE = 6
 
 
-class BaseGame(Game):
+class BaseGame(Game, GameInterface):
     """
     Simple 6x6 two-player placement game.
     Win condition: 4 pieces in a row (any direction).
@@ -74,6 +75,25 @@ class BaseGame(Game):
                 pass   # If a mechanic crashes, skip it gracefully
         # Sync board back from state (mechanics may have modified it)
         self.board.layout = state['board']
+
+    def simulate_move(self, state: dict, move):
+        """
+        Simulate one move from an arbitrary state without mutating the live game.
+        Returns (next_state, ended, winner), where next_state already reflects
+        turn advancement when the game continues.
+        """
+        temp = BaseGame.create(mechanic_fn=None)
+        temp.mechanics = [getattr(fn, "_inner_mechanic", fn) for fn in self.mechanics]
+        temp.board.layout = state["board"].copy()
+        temp.current_player = state["current_player"]
+        temp.turn = state["turn"]
+
+        temp.perform_move(move)
+        ended = temp.game_finished()
+        winner = temp.get_winner() if ended else None
+        if not ended:
+            temp.advance_turn()
+        return temp.get_state(), ended, winner
 
     def game_finished(self) -> bool:
         """Game ends if someone has won or the board is full."""
@@ -131,7 +151,7 @@ class BaseGame(Game):
         return moves
 
     def get_skeleton_description(self) -> str:
-        """Returns a plain-English description of the current game for GPT-4."""
+        """Returns a plain-English description of the current game for the LLM."""
         n_mechanics = len(self.mechanics)
         return (
             f"Two-player board game on a {BOARD_SIZE}x{BOARD_SIZE} grid. "
@@ -142,20 +162,74 @@ class BaseGame(Game):
             f"Current number of active mechanics: {n_mechanics}."
         )
 
+    def get_state_description(self) -> str:
+        return (
+            "The game uses a state dictionary with these keys:\n"
+            "  - 'board'          : a 2D numpy array of single characters "
+            "('_' = blank, 'X' = player 1, 'O' = player 2)\n"
+            "  - 'current_player' : integer (1 or 2)\n"
+            "  - 'turn'           : integer turn count\n"
+            "Note: numpy is imported as 'np' inside mechanic functions."
+        )
+
+    def get_dummy_state(self) -> dict:
+        state = {
+            'board': np.full((BOARD_SIZE, BOARD_SIZE), '_', dtype='<U1'),
+            'current_player': PLAYER_1,
+            'turn': 1,
+        }
+        state['board'][0, 0] = 'X'
+        state['board'][1, 1] = 'O'
+        return state
+
+    def is_valid_move(self, move) -> bool:
+        return self.validate_move(move)
+
+    def get_current_agent(self) -> GameAgent:
+        return self.ai_players[self.current_player]
+
+    def advance_turn(self) -> None:
+        self.current_player = self.next_player()
+        self.turn = self.turn_counter()
+
+    def get_coverage_stats(self, state: dict) -> tuple:
+        covered_cells = int(np.count_nonzero(state["board"] != "_"))
+        board_cell_count = int(state["board"].size)
+        return covered_cells, board_cell_count
+
+    @classmethod
+    def make_random_agent(cls) -> 'RandomAgent':
+        return RandomAgent()
+
+    @classmethod
+    def make_greedy_agent(cls) -> 'GreedyAgent':
+        return GreedyAgent()
+
+    @classmethod
+    def create(cls, mechanic_fn=None, agent1=None, agent2=None) -> 'BaseGame':
+        agent1 = agent1 or cls.make_random_agent()
+        agent2 = agent2 or cls.make_random_agent()
+        mechanics = [mechanic_fn] if mechanic_fn else []
+        board = Board((BOARD_SIZE, BOARD_SIZE))
+        return cls(board, ai_players={PLAYER_1: agent1, PLAYER_2: agent2}, mechanics=mechanics)
+
 
 # -------------------------------------------------------
 # Simple AI agents (no OpenAI needed — pure Python)
 # -------------------------------------------------------
 
-class RandomAgent(AIPlayer):
+class RandomAgent(AIPlayer, GameAgent):
     """Picks a random valid move. Used for playtesting."""
 
     def get_action(self, game, state: dict) -> str:
         moves = game.possible_moves(state)
         return random.choice(moves) if moves else ""
 
+    def choose_move(self, game, state: dict, moves: list):
+        return random.choice(moves) if moves else ""
 
-class GreedyAgent(AIPlayer):
+
+class GreedyAgent(AIPlayer, GameAgent):
     """
     Slightly smarter agent: wins immediately if it can,
     blocks opponent's immediate win if possible,
@@ -191,6 +265,9 @@ class GreedyAgent(AIPlayer):
                 return f"{my_piece} {coords[0]},{coords[1]}"
 
         return random.choice(moves)
+
+    def choose_move(self, game, state: dict, moves: list):
+        return self.get_action(game, state)
 
 
 def get_skeleton_description() -> str:

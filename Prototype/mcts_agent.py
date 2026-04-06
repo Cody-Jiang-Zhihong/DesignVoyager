@@ -1,47 +1,20 @@
 """
 mcts_agent.py
 =============
-Basic Monte Carlo Tree Search agent for DesignVoyager playtesting.
-
-This implementation is intentionally lightweight:
-  - Works with the existing Boardwalk-style state API
-  - Uses random rollouts
-  - Scores outcomes from the root player's perspective
+Lightweight Monte Carlo Tree Search agent for any DesignVoyager game
+that implements GameInterface.simulate_move().
 """
 
 import copy
 import math
 import random
 
-from base_game import AIPlayer, PLAYER_1, PLAYER_2
-
-
-def _next_player(player: int) -> int:
-    return PLAYER_2 if player == PLAYER_1 else PLAYER_1
-
-
-def _advance_state(game, state: dict, move: str):
-    """
-    Apply a move to a copied game state and advance turn bookkeeping.
-
-    Game.next_state() simulates the move itself, but the returned state still
-    reflects the acting player and current turn. We normalize that here so MCTS
-    can keep traversing future turns.
-    """
-    next_state, ended, acting_player_won = game.next_state(state, move)
-
-    if ended:
-        winner = state["current_player"] if acting_player_won else None
-        return next_state, True, winner
-
-    advanced_state = copy.deepcopy(next_state)
-    advanced_state["current_player"] = _next_player(state["current_player"])
-    advanced_state["turn"] = state["turn"] + 1
-    return advanced_state, False, None
+from boardwalk import AIPlayer
+from game_interface import GameAgent
 
 
 class _Node:
-    def __init__(self, state: dict, parent=None, move: str = None):
+    def __init__(self, state: dict, parent=None, move=None):
         self.state = state
         self.parent = parent
         self.move = move
@@ -54,22 +27,13 @@ class _Node:
         return self.untried_moves is not None and len(self.untried_moves) == 0
 
 
-class MCTSAgent(AIPlayer):
-    """
-    Simple MCTS agent with random rollouts.
-
-    Args:
-        simulations   : number of tree iterations per move
-        exploration   : UCB exploration constant
-        rollout_depth : cap on rollout length
-    """
-
+class MCTSAgent(AIPlayer, GameAgent):
     def __init__(self, simulations: int = 40, exploration: float = 1.4, rollout_depth: int = 16):
         self.simulations = simulations
         self.exploration = exploration
         self.rollout_depth = rollout_depth
 
-    def get_action(self, game, state: dict) -> str:
+    def get_action(self, game, state: dict):
         moves = game.possible_moves(state)
         if not moves:
             return ""
@@ -92,11 +56,8 @@ class MCTSAgent(AIPlayer):
             if node.untried_moves:
                 move = random.choice(node.untried_moves)
                 node.untried_moves.remove(move)
-                child_state, ended, winner = _advance_state(game, node.state, move)
+                child_state, _, _ = game.simulate_move(node.state, move)
                 child = _Node(child_state, parent=node, move=move)
-                child.untried_moves = [] if ended else None
-                child.terminal_winner = winner
-                child.terminal = ended
                 node.children.append(child)
                 node = child
 
@@ -105,6 +66,9 @@ class MCTSAgent(AIPlayer):
 
         best_child = max(root.children, key=lambda child: child.visits)
         return best_child.move
+
+    def choose_move(self, game, state: dict, moves: list):
+        return self.get_action(game, state)
 
     def _select_child(self, node: _Node) -> _Node:
         log_parent_visits = math.log(max(node.visits, 1))
@@ -127,7 +91,7 @@ class MCTSAgent(AIPlayer):
                 return 0.5
 
             move = random.choice(moves)
-            rollout_state, ended, winner = _advance_state(game, rollout_state, move)
+            rollout_state, ended, winner = game.simulate_move(rollout_state, move)
             if ended:
                 if winner is None:
                     return 0.5

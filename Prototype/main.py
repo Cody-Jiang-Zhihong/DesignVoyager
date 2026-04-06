@@ -1,63 +1,62 @@
 """
 main.py
 =======
-DesignVoyager — Full Loop
+DesignVoyager - Full Loop
 
-Runs the complete autonomous game mechanic design loop:
-
-  For each iteration:
-    1. Retrieve top-k mechanics from the library (context for GPT-4)
-    2. Propose a new mechanic (GPT-4 via proposal_module)
-    3. Compile check — does the code run without crashing?
-    4. Playtest — measure playability, balance, depth (pure Python, no API cost)
-    5. Verify — accept, revise, or discard
-       - If REVISE: send feedback back to GPT-4, try once more
-       - If ACCEPT: add to library, move to next iteration
-       - If DISCARD: skip, move to next iteration
-
-Run it:
-    python3 main.py
-
-Or with custom settings:
-    python3 main.py --iterations 5 --top-k 3
+Supports multiple game types while preserving board-game MCTS playtesting.
 """
 
 import argparse
+import json
+import os
+import re
+
 from dotenv import load_dotenv
 
-from base_game import get_skeleton_description
-from mechanic_library import MechanicLibrary
-from proposal_module import propose_mechanic
-from compile_check import compile_check
-from playtest_module import playtest
-from verification_module import verify, ACCEPT, REVISE, DISCARD
+from base_game import BaseGame
+from card_game import CardGame
+from compile_check import check_runtime, check_syntax, compile_check, load_mechanic_fn
 from curriculum import Curriculum
+from mechanic_library import MechanicLibrary
+from playtest_module import dry_run_integration, get_last_runtime_report, playtest
+from proposal_module import propose_mechanic
+from verification_module import ACCEPT, DISCARD, REVISE, verify
 
 load_dotenv()
 
+GAME_REGISTRY = {
+    "board": (BaseGame, "library.json"),
+    "card": (CardGame, "library_card.json"),
+}
 
-# ── Default settings ──────────────────────────────────────────────────────────
-DEFAULT_ITERATIONS = 1   # How many mechanics to try to add to the library
-DEFAULT_TOP_K      = 3  # How many existing mechanics to show GPT-4 as examples
-DEFAULT_USER_PROMPT = "I want a score-based mechanic."  # Optional extra instruction to GPT-4 for customized mechanic generation
+DEFAULT_ITERATIONS = 1
+DEFAULT_TOP_K = 3
+DEFAULT_GAME = "board"
+DEFAULT_USER_PROMPT = "I want a score-based mechanic."
+
+_last_scores: dict = {}
+_last_runtime_report: dict = {}
 
 
-def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K, 
-             user_prompt: str = DEFAULT_USER_PROMPT):
-    """
-    Run the full DesignVoyager loop for n_iterations.
-    Each iteration tries to produce one accepted mechanic.
-    """
-    library    = MechanicLibrary()
+def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
+             game_name: str = DEFAULT_GAME, user_prompt: str = DEFAULT_USER_PROMPT):
+    game_class, library_file = GAME_REGISTRY[game_name]
+    game_template = game_class.create()
+    game_skeleton = game_template.get_skeleton_description()
+    state_desc = game_template.get_state_description()
+    dummy_state = game_template.get_dummy_state()
+
+    library = MechanicLibrary(filepath=library_file)
     curriculum = Curriculum()
-    game_skeleton = get_skeleton_description()
 
     print("\n" + "=" * 60)
-    print("  DesignVoyager — Autonomous Game Mechanic Designer")
+    print("  DesignVoyager - Autonomous Game Mechanic Designer")
     print("=" * 60)
+    print(f"  Game       : {game_name} ({game_class.__name__})")
     print(f"  Iterations : {n_iterations}")
     print(f"  Context k  : {top_k}")
-    print(f"  User Prompt: {user_prompt[:50]}..." if len(user_prompt) > 50 else f"  User Prompt: {user_prompt}")
+    if user_prompt:
+        print(f"  User Prompt: {user_prompt[:50]}..." if len(user_prompt) > 50 else f"  User Prompt: {user_prompt}")
     print(f"  Library    : {library.summary()}")
     print(f"  Curriculum : {curriculum.progress_str()}")
     print("=" * 60 + "\n")
@@ -66,56 +65,76 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
     discarded_count = 0
 
     for iteration in range(1, n_iterations + 1):
-        print(f"\n{'─' * 60}")
+        print(f"\n{'-' * 60}")
         print(f"  ITERATION {iteration} / {n_iterations}  |  {curriculum.progress_str()}")
-        print(f"  User Prompt: {user_prompt}")
-        print(f"{'─' * 60}")
+        print(f"{'-' * 60}")
 
-        # ── Step 1: Retrieve context from library ──────────────────────────
-        retrieved = library.retrieve(k=top_k, query=user_prompt)
+        retrieval_query = f"{game_skeleton} {curriculum.stage_name()} {user_prompt}".strip()
+        retrieved = library.retrieve(k=top_k, query=retrieval_query)
         print(f"[Loop] Retrieved {len(retrieved)} mechanics for context.")
-        for i, mech in enumerate(retrieved, 1):
-            print(f"  [{i}] {mech.get('mechanic_name')} | Type: {mech.get('mechanic_type')} | {mech.get('description')}")
 
-        # ── Step 2: Propose a mechanic ─────────────────────────────────────
-        mechanic = propose_mechanic(game_skeleton, retrieved,
-                                    stage_prompt=curriculum.stage_prompt(),
-                                    user_prompt=user_prompt)
+        mechanic = propose_mechanic(
+            game_skeleton,
+            retrieved,
+            stage_prompt=curriculum.stage_prompt(),
+            user_prompt=user_prompt,
+            state_description=state_desc,
+        )
         if mechanic is None:
-            print("[Loop] Proposal failed — skipping this iteration.\n")
+            print("[Loop] Proposal failed - skipping this iteration.\n")
             curriculum.on_discard()
             discarded_count += 1
             continue
 
-        # ── Step 3 + 4 + 5: Compile → Playtest → Verify (with one revision) ─
-        outcome = _compile_playtest_verify(mechanic, already_revised=False)
+        outcome = _compile_playtest_verify(
+            mechanic,
+            already_revised=False,
+            game_class=game_class,
+            dummy_state=dummy_state,
+            game_name=game_name,
+            iteration=iteration,
+            stage=curriculum.stage,
+        )
 
         if outcome == REVISE:
             print("[Loop] Sending for revision...\n")
-            revised_mechanic = _revise(mechanic, game_skeleton, retrieved,
-                                       curriculum.stage_prompt(), user_prompt)
+            revised_mechanic = _revise(
+                mechanic,
+                game_skeleton,
+                retrieved,
+                curriculum.stage_prompt(),
+                user_prompt,
+                state_description=state_desc,
+            )
             if revised_mechanic is None:
-                print("[Loop] Revision failed — discarding.\n")
+                print("[Loop] Revision failed - discarding.\n")
                 curriculum.on_discard()
                 discarded_count += 1
                 continue
-            outcome = _compile_playtest_verify(revised_mechanic, already_revised=True)
+            outcome = _compile_playtest_verify(
+                revised_mechanic,
+                already_revised=True,
+                game_class=game_class,
+                dummy_state=dummy_state,
+                game_name=game_name,
+                iteration=iteration,
+                stage=curriculum.stage,
+            )
             mechanic = revised_mechanic
 
         if outcome == ACCEPT:
-            scores = _get_scores(mechanic)
+            scores = _get_scores()
             library.add(mechanic, scores, iteration=iteration)
             advanced = curriculum.on_accept()
             accepted_count += 1
-            print(f"[Loop] ✓ Accepted! Library now has {library.size()} mechanics.")
+            print(f"[Loop] accepted. Library now has {library.size()} mechanics.")
             if advanced:
-                print(f"[Curriculum] ★ Advanced to {curriculum.stage_name()}!")
+                print(f"[Curriculum] advanced to {curriculum.stage_name()}.")
         else:
             curriculum.on_discard()
             discarded_count += 1
-            print(f"[Loop] ✗ Discarded after revision.")
+            print("[Loop] discarded after revision.")
 
-    # ── Final summary ──────────────────────────────────────────────────────────
     print("\n" + "=" * 60)
     print("  Run complete!")
     print(f"  Accepted  : {accepted_count}")
@@ -124,63 +143,169 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
     print("=" * 60 + "\n")
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+def _compile_playtest_verify(mechanic: dict, already_revised: bool,
+                             game_class=None, dummy_state: dict = None,
+                             game_name: str = DEFAULT_GAME, iteration: int = 0,
+                             stage: int = 1) -> str:
+    global _last_scores, _last_runtime_report
 
-# We stash the last scores here so the main loop can retrieve them after
-# _compile_playtest_verify — avoids re-running playtesting.
-_last_scores: dict = {}
-
-
-def _compile_playtest_verify(mechanic: dict, already_revised: bool) -> str:
-    """
-    Run compile check → playtest → verify on a mechanic.
-    Returns one of: ACCEPT, REVISE, DISCARD.
-    Also stores the scores in _last_scores for the caller to use.
-    """
-    global _last_scores
-
-    # ── Compile check ──────────────────────────────────────────────────────
-    ok, error = compile_check(mechanic)
+    integration = _build_integration_report(mechanic, game_class=game_class, dummy_state=dummy_state)
+    ok, error = compile_check(mechanic, dummy_state=dummy_state)
     if not ok:
+        _last_runtime_report = _build_failure_report(
+            mechanic, integration, stage=stage, retry_count=int(already_revised)
+        )
+        _save_runtime_report(_last_runtime_report, game_name, mechanic.get("mechanic_name", "unknown"), iteration, already_revised)
         feedback = (
             f"The code failed a syntax or runtime check: {error}. "
             f"Please rewrite the function so it runs without errors."
         )
         if already_revised:
             return DISCARD
-        # Treat a compile failure the same as REVISE so the caller can retry
         mechanic["_revision_feedback"] = feedback
         return REVISE
 
-    # ── Playtest ───────────────────────────────────────────────────────────
-    scores = playtest(mechanic)
+    scores = playtest(
+        mechanic,
+        game_class=game_class,
+        integration=integration,
+        stage=stage,
+        retry_count=int(already_revised),
+    )
     _last_scores = scores
+    _last_runtime_report = get_last_runtime_report()
+    mechanic["_self_verification_report"] = _last_runtime_report
+    _save_runtime_report(_last_runtime_report, game_name, mechanic.get("mechanic_name", "unknown"), iteration, already_revised)
 
-    # ── Verify ────────────────────────────────────────────────────────────
     decision, feedback = verify(mechanic, scores, already_revised)
     if decision == REVISE:
         mechanic["_revision_feedback"] = feedback
     return decision
 
 
-def _get_scores(mechanic: dict) -> dict:
-    """Return the scores from the most recent playtest."""
+def _get_scores() -> dict:
     return _last_scores.copy()
 
 
+def _build_integration_report(mechanic: dict, game_class=None, dummy_state: dict = None) -> dict:
+    game_class = game_class or BaseGame
+    required_fields = ["mechanic_name", "mechanic_type", "description", "python_code", "justification"]
+    schema_ok = all(field in mechanic for field in required_fields)
+    code = mechanic.get("python_code", "")
+    syntax_ok, syntax_error = check_syntax(code)
+    runtime_ok, runtime_error = check_runtime(code, dummy_state=dummy_state) if syntax_ok else (False, syntax_error)
+
+    hook_location = mechanic.get("hook_location", "perform_move")
+    hook_ok = hook_location == "perform_move"
+
+    mechanic_fn = None
+    instantiation_ok = False
+    instantiation_error = ""
+    if runtime_ok:
+        try:
+            mechanic_fn = load_mechanic_fn(code)
+            game_class.create(mechanic_fn=mechanic_fn)
+            instantiation_ok = True
+        except Exception as e:
+            instantiation_error = f"{type(e).__name__}: {e}"
+
+    dry_run_ok, dry_run_error = dry_run_integration(code, game_class=game_class) if instantiation_ok else (False, instantiation_error or runtime_error)
+    error_message = ""
+    for err in [syntax_error, runtime_error, instantiation_error, dry_run_error]:
+        if err:
+            error_message = err
+            break
+
+    return {
+        "schema_ok": schema_ok,
+        "syntax_ok": syntax_ok,
+        "hook_ok": hook_ok,
+        "instantiation_ok": instantiation_ok,
+        "dry_run_ok": dry_run_ok,
+        "error_message": error_message,
+    }
+
+
+def _build_failure_report(mechanic: dict, integration: dict, stage: int, retry_count: int) -> dict:
+    empty_metrics = {
+        "total_matches": 0,
+        "completed_matches": 0,
+        "p1_wins": 0,
+        "p2_wins": 0,
+        "draws": 0,
+        "p1_win_rate": 0.0,
+        "p2_win_rate": 0.0,
+        "balance_gap": 0.0,
+        "draw_rate": 0.0,
+        "decisiveness": 0.0,
+        "strong_vs_weak_matches": 0,
+        "strong_agent_wins": 0,
+        "weak_agent_wins": 0,
+        "strong_agent_win_rate": 0.0,
+        "weak_agent_win_rate": 0.0,
+        "depth": 0.0,
+        "avg_game_length": 0.0,
+        "multi_choice_turns": 0,
+        "total_turns": 0,
+        "agency": 0.0,
+        "covered_cells": 0,
+        "board_cell_count": 0,
+        "coverage": 0.0,
+    }
+    return {
+        "stage": stage,
+        "retry_count": retry_count,
+        "mechanic": {
+            "mechanic_name": mechanic.get("mechanic_name", "unknown"),
+            "mechanic_type": mechanic.get("mechanic_type", "other"),
+            "description": mechanic.get("description", ""),
+            "python_code": mechanic.get("python_code", ""),
+            "justification": mechanic.get("justification", ""),
+            "hook_location": mechanic.get("hook_location", "perform_move"),
+        },
+        "integration": integration,
+        "parent_metrics": empty_metrics,
+        "child_metrics": empty_metrics,
+        "trigger_stats": {
+            "trigger_count": 0,
+            "triggered_matches": 0,
+            "total_matches": 0,
+            "total_turns": 0,
+            "state_changed_by_mechanic_count": 0,
+            "trigger_rate_by_match": 0.0,
+            "trigger_rate_by_turn": 0.0,
+        },
+        "derived_scores": {
+            "playability": 0.0,
+            "balance_gap": 0.0,
+            "depth": 0.0,
+            "aggregate": 0.0,
+        },
+        "parent_summary": "Baseline game without the new mechanic.",
+    }
+
+
+def _save_runtime_report(report: dict, game_name: str, mechanic_name: str, iteration: int, revised: bool):
+    reports_dir = os.path.join(os.path.dirname(__file__), "runtime_reports")
+    os.makedirs(reports_dir, exist_ok=True)
+    safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", mechanic_name).strip("_") or "unknown"
+    suffix = "revised" if revised else "initial"
+    filename = f"{game_name}_iter{iteration:02d}_{safe_name}_{suffix}.json"
+    filepath = os.path.join(reports_dir, filename)
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2)
+
+
 def _revise(original_mechanic: dict, game_skeleton: str, retrieved: list,
-            stage_prompt: str = "", user_prompt: str = ""):
-    """
-    Ask GPT-4 to revise a failing mechanic, keeping the same stage prompt and user prompt.
-    """
+            stage_prompt: str = "", user_prompt: str = "", state_description: str = None):
     feedback = original_mechanic.get("_revision_feedback", "Please improve this mechanic.")
-    name     = original_mechanic.get("mechanic_name", "unknown")
+    name = original_mechanic.get("mechanic_name", "unknown")
 
     revision_context = retrieved + [{
-        "mechanic_name": f"{name} (PREVIOUS ATTEMPT — FAILED)",
+        "mechanic_name": f"{name} (PREVIOUS ATTEMPT - FAILED)",
         "mechanic_type": original_mechanic.get("mechanic_type", "other"),
-        "description":   original_mechanic.get("description", ""),
-        "python_code":   original_mechanic.get("python_code", ""),
+        "description": original_mechanic.get("description", ""),
+        "python_code": original_mechanic.get("python_code", ""),
     }]
 
     skeleton_with_feedback = (
@@ -189,31 +314,25 @@ def _revise(original_mechanic: dict, game_skeleton: str, retrieved: list,
         + "Please propose a corrected version of this mechanic that fixes the issue above."
     )
 
-    return propose_mechanic(skeleton_with_feedback, revision_context,
-                            stage_prompt=stage_prompt, user_prompt=user_prompt)
+    return propose_mechanic(
+        skeleton_with_feedback,
+        revision_context,
+        stage_prompt=stage_prompt,
+        user_prompt=user_prompt,
+        state_description=state_description,
+    )
 
-
-# ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="DesignVoyager — autonomous mechanic designer")
-    parser.add_argument(
-        "--iterations", "-n",
-        type=int,
-        default=DEFAULT_ITERATIONS,
-        help=f"Number of design iterations to run (default: {DEFAULT_ITERATIONS})"
-    )
-    parser.add_argument(
-        "--top-k", "-k",
-        type=int,
-        default=DEFAULT_TOP_K,
-        help=f"Mechanics retrieved from library as GPT-4 context (default: {DEFAULT_TOP_K})"
-    )
-    parser.add_argument(
-        "--user-prompt", "-u",
-        type=str,
-        default=DEFAULT_USER_PROMPT,
-        help="User customization prompt for tailored mechanic generation (e.g., 'focus on flip mechanics')"
-    )
+    parser = argparse.ArgumentParser(description="DesignVoyager - autonomous mechanic designer")
+    parser.add_argument("--iterations", "-n", type=int, default=DEFAULT_ITERATIONS)
+    parser.add_argument("--top-k", "-k", type=int, default=DEFAULT_TOP_K)
+    parser.add_argument("--game", "-g", type=str, choices=list(GAME_REGISTRY.keys()), default=DEFAULT_GAME)
+    parser.add_argument("--user-prompt", "-u", type=str, default=DEFAULT_USER_PROMPT)
     args = parser.parse_args()
-    run_loop(n_iterations=args.iterations, top_k=args.top_k, user_prompt=args.user_prompt)
+    run_loop(
+        n_iterations=args.iterations,
+        top_k=args.top_k,
+        game_name=args.game,
+        user_prompt=args.user_prompt,
+    )

@@ -1,37 +1,49 @@
 """
 playtest_module.py
 ==================
-DesignVoyager — Playtest Module
+DesignVoyager - Playtest Module
 
-Step 3 of the loop: runs automated games to measure how good the
-mechanic is. Uses pure Python agents — NO OpenAI API calls here.
-
-Measures three things:
-  1. Playability  — what fraction of games finish normally?
-  2. Balance      — how even are the win rates? (lower gap = fairer)
-  3. Depth        — does a stronger MCTS budget outperform a weaker one?
+Produces both the compact score summary used by verification and a richer
+runtime report for self-verification integration.
 """
 
+import copy
 import multiprocessing as mp
 import queue
 
-from boardwalk import Board
-from base_game import BaseGame, RandomAgent, BOARD_SIZE, PLAYER_1, PLAYER_2
+import numpy as np
+
+from base_game import BaseGame, PLAYER_1, PLAYER_2
 from compile_check import load_mechanic_fn
 from mcts_agent import MCTSAgent
 
-# How many games to run per measurement
-N_GAMES_BALANCE = 60    # for playability + balance
-N_GAMES_DEPTH   = 40    # for strategic depth
-MAX_TURNS       = 100   # safety cap — gives complex mechanics more room to resolve
-GAME_TIMEOUT    = 4.0   # wall-clock seconds per game
+N_GAMES_BALANCE = 60
+N_GAMES_DEPTH = 40
+MAX_TURNS = 100
+GAME_TIMEOUT = 4.0
 
 BALANCE_MCTS_SIMS = 20
 DEPTH_STRONG_SIMS = 50
-DEPTH_WEAK_SIMS   = 10
+DEPTH_WEAK_SIMS = 10
+
+_last_runtime_report = {}
 
 
-def _build_agent(spec: dict):
+def _normalize(value):
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, dict):
+        return {str(k): _normalize(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_normalize(v) for v in value]
+    return value
+
+
+def _states_differ(before: dict, after: dict) -> bool:
+    return _normalize(before) != _normalize(after)
+
+
+def _build_agent(game_class, spec: dict):
     kind = spec.get("kind", "random")
     if kind == "mcts":
         return MCTSAgent(
@@ -39,83 +51,145 @@ def _build_agent(spec: dict):
             exploration=spec.get("exploration", 1.4),
             rollout_depth=spec.get("rollout_depth", 16),
         )
-    return RandomAgent()
+    if kind == "greedy":
+        return game_class.make_greedy_agent()
+    return game_class.make_random_agent()
 
 
-def run_single_game(mechanic_fn=None, agent1=None, agent2=None) -> tuple:
-    """
-    Run one game and return (winner, completed_normally).
+def _wrap_mechanic(mechanic_fn, tracker: dict):
+    if mechanic_fn is None:
+        return None
 
-    Args:
-        mechanic_fn : optional Python function to add as a mechanic
-        agent1      : AIPlayer for PLAYER_1 (default: RandomAgent)
-        agent2      : AIPlayer for PLAYER_2 (default: RandomAgent)
+    def wrapped(game_state: dict):
+        tracker["trigger_count"] += 1
+        before = copy.deepcopy(game_state)
+        result = mechanic_fn(game_state)
+        after = result if isinstance(result, dict) else game_state
+        if _states_differ(before, after):
+            tracker["state_changed_by_mechanic_count"] += 1
+        return result
 
-    Returns:
-        (winner: int or None, completed: bool)
-        winner=None means draw or did not complete
-    """
-    agent1 = agent1 or RandomAgent()
-    agent2 = agent2 or RandomAgent()
+    wrapped._inner_mechanic = mechanic_fn
+    return wrapped
 
-    board    = Board((BOARD_SIZE, BOARD_SIZE))
-    mechanics = [mechanic_fn] if mechanic_fn else []
-    game     = BaseGame(board, ai_players={PLAYER_1: agent1, PLAYER_2: agent2},
-                        mechanics=mechanics)
 
-    turn_count = 0
+def run_single_game(mechanic_fn=None, agent1=None, agent2=None, game_class=None) -> dict:
+    game_class = game_class or BaseGame
+    agent1 = agent1 or game_class.make_random_agent()
+    agent2 = agent2 or game_class.make_random_agent()
+
+    tracker = {
+        "trigger_count": 0,
+        "state_changed_by_mechanic_count": 0,
+    }
+    wrapped_mechanic = _wrap_mechanic(mechanic_fn, tracker)
+    game = game_class.create(mechanic_fn=wrapped_mechanic, agent1=agent1, agent2=agent2)
+
+    total_turns = 0
+    multi_choice_turns = 0
+
     while True:
-        if turn_count > MAX_TURNS:
-            return None, False   # Safety: didn't finish in time
+        if total_turns > MAX_TURNS:
+            return {
+                "winner": None,
+                "completed": False,
+                "turns": total_turns,
+                "multi_choice_turns": multi_choice_turns,
+                "covered_cells": 0,
+                "board_cell_count": 0,
+                "trigger_count": tracker["trigger_count"],
+                "state_changed_by_mechanic_count": tracker["state_changed_by_mechanic_count"],
+                "triggered": tracker["trigger_count"] > 0,
+            }
 
         state = game.get_state()
         moves = game.possible_moves(state)
 
+        if len(moves) > 1:
+            multi_choice_turns += 1
+        total_turns += 1
+
         if not moves:
-            return None, True   # Draw — board full
+            covered_cells, board_cell_count = game.get_coverage_stats(game.get_state())
+            return {
+                "winner": None,
+                "completed": True,
+                "turns": total_turns,
+                "multi_choice_turns": multi_choice_turns,
+                "covered_cells": covered_cells,
+                "board_cell_count": board_cell_count,
+                "trigger_count": tracker["trigger_count"],
+                "state_changed_by_mechanic_count": tracker["state_changed_by_mechanic_count"],
+                "triggered": tracker["trigger_count"] > 0,
+            }
 
-        agent = game.ai_players[game.current_player]
-        move  = agent.get_action(game, state)
+        agent = game.get_current_agent()
+        move = agent.choose_move(game, state, moves)
 
-        if not game.validate_move(move):
-            return None, False  # Invalid move = broken mechanic
+        if not game.is_valid_move(move):
+            covered_cells, board_cell_count = game.get_coverage_stats(game.get_state())
+            return {
+                "winner": None,
+                "completed": False,
+                "turns": total_turns,
+                "multi_choice_turns": multi_choice_turns,
+                "covered_cells": covered_cells,
+                "board_cell_count": board_cell_count,
+                "trigger_count": tracker["trigger_count"],
+                "state_changed_by_mechanic_count": tracker["state_changed_by_mechanic_count"],
+                "triggered": tracker["trigger_count"] > 0,
+            }
 
         game.perform_move(move)
 
         if game.game_finished():
-            winner = game.get_winner()
-            return winner, True
+            covered_cells, board_cell_count = game.get_coverage_stats(game.get_state())
+            return {
+                "winner": game.get_winner(),
+                "completed": True,
+                "turns": total_turns,
+                "multi_choice_turns": multi_choice_turns,
+                "covered_cells": covered_cells,
+                "board_cell_count": board_cell_count,
+                "trigger_count": tracker["trigger_count"],
+                "state_changed_by_mechanic_count": tracker["state_changed_by_mechanic_count"],
+                "triggered": tracker["trigger_count"] > 0,
+            }
 
-        game.current_player = game.next_player()
-        game.turn           = game.turn_counter()
-        turn_count += 1
+        game.advance_turn()
 
 
-def _play_game_worker(code: str, agent1_spec: dict, agent2_spec: dict, result_queue):
-    """
-    Child-process entry point for a single game.
-    """
+def _play_game_worker(code: str, agent1_spec: dict, agent2_spec: dict, game_class, result_queue):
     try:
         mechanic_fn = load_mechanic_fn(code) if code else None
         result = run_single_game(
             mechanic_fn=mechanic_fn,
-            agent1=_build_agent(agent1_spec),
-            agent2=_build_agent(agent2_spec),
+            agent1=_build_agent(game_class, agent1_spec),
+            agent2=_build_agent(game_class, agent2_spec),
+            game_class=game_class,
         )
         result_queue.put(result)
     except Exception:
-        result_queue.put((None, False))
+        result_queue.put({
+            "winner": None,
+            "completed": False,
+            "turns": 0,
+            "multi_choice_turns": 0,
+            "covered_cells": 0,
+            "board_cell_count": 0,
+            "trigger_count": 0,
+            "state_changed_by_mechanic_count": 0,
+            "triggered": False,
+        })
 
 
-def _run_game_safe(code: str, agent1_spec: dict, agent2_spec: dict) -> tuple:
-    """
-    Run a single game inside a subprocess so timeouts work on Windows and macOS.
-    """
+def _run_game_safe(code: str, agent1_spec: dict, agent2_spec: dict, game_class=None) -> dict:
+    game_class = game_class or BaseGame
     ctx = mp.get_context("spawn")
     result_queue = ctx.Queue()
     process = ctx.Process(
         target=_play_game_worker,
-        args=(code, agent1_spec, agent2_spec, result_queue),
+        args=(code, agent1_spec, agent2_spec, game_class, result_queue),
     )
     process.start()
     process.join(GAME_TIMEOUT)
@@ -123,122 +197,263 @@ def _run_game_safe(code: str, agent1_spec: dict, agent2_spec: dict) -> tuple:
     if process.is_alive():
         process.terminate()
         process.join()
-        return None, False
+        return {
+            "winner": None,
+            "completed": False,
+            "turns": 0,
+            "multi_choice_turns": 0,
+            "covered_cells": 0,
+            "board_cell_count": 0,
+            "trigger_count": 0,
+            "state_changed_by_mechanic_count": 0,
+            "triggered": False,
+        }
 
     try:
         return result_queue.get_nowait()
     except queue.Empty:
-        return None, False
+        return {
+            "winner": None,
+            "completed": False,
+            "turns": 0,
+            "multi_choice_turns": 0,
+            "covered_cells": 0,
+            "board_cell_count": 0,
+            "trigger_count": 0,
+            "state_changed_by_mechanic_count": 0,
+            "triggered": False,
+        }
 
 
-def measure_playability_and_balance(code: str = "") -> tuple:
-    """
-    Run N games with symmetric low-budget MCTS agents.
+def dry_run_integration(code: str, game_class=None) -> tuple:
+    game_class = game_class or BaseGame
+    result = _run_game_safe(code, {"kind": "random"}, {"kind": "random"}, game_class=game_class)
+    return result["completed"], "" if result["completed"] else "Single integration dry run did not complete."
 
-    Returns:
-        playability : fraction of games that completed normally (0.0 - 1.0)
-        balance_gap : |P1_wins - P2_wins| / completed_games (0.0 = perfect balance)
-    """
+
+def _collect_balance_metrics(code: str = "", game_class=None) -> dict:
+    game_class = game_class or BaseGame
     completed = 0
-    p1_wins   = 0
-    p2_wins   = 0
+    p1_wins = 0
+    p2_wins = 0
+    draws = 0
+    total_turns = 0
+    multi_choice_turns = 0
+    covered_total = 0
+    board_cell_count = 0
+    trigger_count = 0
+    triggered_matches = 0
+    state_changed = 0
+    total_matches = N_GAMES_BALANCE
 
-    agent_specs = [
-        {"kind": "mcts", "simulations": BALANCE_MCTS_SIMS},
-        {"kind": "mcts", "simulations": BALANCE_MCTS_SIMS},
-    ]
+    agent1_spec = {"kind": "mcts", "simulations": BALANCE_MCTS_SIMS}
+    agent2_spec = {"kind": "mcts", "simulations": BALANCE_MCTS_SIMS}
 
-    for _ in range(N_GAMES_BALANCE):
-        winner, ok = _run_game_safe(code, agent_specs[0], agent_specs[1])
-        if ok:
+    for _ in range(total_matches):
+        result = _run_game_safe(code, agent1_spec, agent2_spec, game_class=game_class)
+        total_turns += result["turns"]
+        multi_choice_turns += result["multi_choice_turns"]
+        covered_total += result["covered_cells"]
+        board_cell_count = max(board_cell_count, result["board_cell_count"])
+        trigger_count += result["trigger_count"]
+        state_changed += result["state_changed_by_mechanic_count"]
+        if result["triggered"]:
+            triggered_matches += 1
+
+        if result["completed"]:
             completed += 1
-            if winner == PLAYER_1:
+            if result["winner"] == PLAYER_1:
                 p1_wins += 1
-            elif winner == PLAYER_2:
+            elif result["winner"] == PLAYER_2:
                 p2_wins += 1
+            else:
+                draws += 1
 
-    playability = completed / N_GAMES_BALANCE
-    if completed == 0:
-        return 0.0, 1.0
+    avg_game_length = total_turns / total_matches if total_matches else 0.0
+    playability = completed / total_matches if total_matches else 0.0
+    p1_win_rate = p1_wins / total_matches if total_matches else 0.0
+    p2_win_rate = p2_wins / total_matches if total_matches else 0.0
+    balance_gap = abs(p1_win_rate - p2_win_rate)
+    draw_rate = draws / total_matches if total_matches else 0.0
+    decisiveness = 1.0 - draw_rate
+    agency = multi_choice_turns / total_turns if total_turns else 0.0
+    coverage = (covered_total / total_matches) / board_cell_count if total_matches and board_cell_count else 0.0
 
-    balance_gap = abs(p1_wins - p2_wins) / completed
-    return playability, balance_gap
+    return {
+        "total_matches": total_matches,
+        "completed_matches": completed,
+        "p1_wins": p1_wins,
+        "p2_wins": p2_wins,
+        "draws": draws,
+        "p1_win_rate": round(p1_win_rate, 3),
+        "p2_win_rate": round(p2_win_rate, 3),
+        "balance_gap": round(balance_gap, 3),
+        "draw_rate": round(draw_rate, 3),
+        "decisiveness": round(decisiveness, 3),
+        "avg_game_length": round(avg_game_length, 3),
+        "multi_choice_turns": multi_choice_turns,
+        "total_turns": total_turns,
+        "agency": round(agency, 3),
+        "covered_cells": int(round(covered_total / total_matches)) if total_matches else 0,
+        "board_cell_count": board_cell_count,
+        "coverage": round(coverage, 3),
+        "trigger_count": trigger_count,
+        "triggered_matches": triggered_matches,
+        "state_changed_by_mechanic_count": state_changed,
+    }
 
 
-def measure_depth(code: str = "") -> float:
-    """
-    Run N games alternating seats: strong-budget MCTS vs weak-budget MCTS.
-    A higher strong-agent win rate suggests the game rewards better decisions
-    and deeper search.
-
-    Returns:
-        depth_proxy : strong-budget win rate (0.0 - 1.0)
-    """
+def _collect_depth_metrics(code: str = "", game_class=None) -> dict:
+    game_class = game_class or BaseGame
     strong_wins = 0
-    completed   = 0
+    weak_wins = 0
+    completed = 0
 
     strong_spec = {"kind": "mcts", "simulations": DEPTH_STRONG_SIMS}
-    weak_spec   = {"kind": "mcts", "simulations": DEPTH_WEAK_SIMS}
+    weak_spec = {"kind": "mcts", "simulations": DEPTH_WEAK_SIMS}
 
     for game_index in range(N_GAMES_DEPTH):
         strong_as_p1 = (game_index % 2 == 0)
         agent1_spec = strong_spec if strong_as_p1 else weak_spec
         agent2_spec = weak_spec if strong_as_p1 else strong_spec
-
-        winner, ok = _run_game_safe(code, agent1_spec, agent2_spec)
-        if ok:
+        result = _run_game_safe(code, agent1_spec, agent2_spec, game_class=game_class)
+        if result["completed"]:
             completed += 1
-            if strong_as_p1 and winner == PLAYER_1:
+            if strong_as_p1 and result["winner"] == PLAYER_1:
                 strong_wins += 1
-            elif (not strong_as_p1) and winner == PLAYER_2:
+            elif (not strong_as_p1) and result["winner"] == PLAYER_2:
                 strong_wins += 1
+            elif result["winner"] in (PLAYER_1, PLAYER_2):
+                weak_wins += 1
 
-    if completed == 0:
-        return 0.0
+    strong_rate = strong_wins / completed if completed else 0.0
+    weak_rate = weak_wins / completed if completed else 0.0
+    depth = strong_rate - weak_rate
 
-    return strong_wins / completed
+    return {
+        "strong_vs_weak_matches": N_GAMES_DEPTH,
+        "strong_agent_wins": strong_wins,
+        "weak_agent_wins": weak_wins,
+        "strong_agent_win_rate": round(strong_rate, 3),
+        "weak_agent_win_rate": round(weak_rate, 3),
+        "depth": round(depth, 3),
+    }
 
 
-def playtest(mechanic: dict) -> dict:
-    """
-    Full playtest of a mechanic. Runs automated games and returns scores.
+def _merge_metrics(balance_metrics: dict, depth_metrics: dict) -> dict:
+    merged = dict(balance_metrics)
+    merged.update(depth_metrics)
+    return merged
 
-    Args:
-        mechanic : dict from proposal_module (must have 'python_code')
 
-    Returns:
-        scores dict with keys:
-            playability  (higher is better, target >= 0.8)
-            balance_gap  (lower is better, target <= 0.4)
-            depth        (higher is better)
-            aggregate    (combined score for ranking)
-    """
+def _build_scores(child_metrics: dict) -> dict:
+    playability = child_metrics["completed_matches"] / child_metrics["total_matches"] if child_metrics["total_matches"] else 0.0
+    balance_gap = child_metrics["balance_gap"]
+    depth = child_metrics["depth"]
+    aggregate = 0.5 * (1.0 - balance_gap) + 0.5 * max(depth, 0.0)
+    return {
+        "playability": round(playability, 3),
+        "balance_gap": round(balance_gap, 3),
+        "depth": round(depth, 3),
+        "aggregate": round(aggregate, 3),
+    }
+
+
+def build_runtime_report(mechanic: dict, integration: dict, parent_metrics: dict,
+                         child_metrics: dict, stage: int = 1, retry_count: int = 0) -> dict:
+    scores = _build_scores(child_metrics)
+    trigger_stats = {
+        "trigger_count": child_metrics["trigger_count"],
+        "triggered_matches": child_metrics["triggered_matches"],
+        "total_matches": child_metrics["total_matches"],
+        "total_turns": child_metrics["total_turns"],
+        "state_changed_by_mechanic_count": child_metrics["state_changed_by_mechanic_count"],
+        "trigger_rate_by_match": round(
+            child_metrics["triggered_matches"] / child_metrics["total_matches"], 3
+        ) if child_metrics["total_matches"] else 0.0,
+        "trigger_rate_by_turn": round(
+            child_metrics["trigger_count"] / child_metrics["total_turns"], 3
+        ) if child_metrics["total_turns"] else 0.0,
+    }
+
+    return {
+        "stage": stage,
+        "retry_count": retry_count,
+        "mechanic": {
+            "mechanic_name": mechanic.get("mechanic_name", "unknown"),
+            "mechanic_type": mechanic.get("mechanic_type", "other"),
+            "description": mechanic.get("description", ""),
+            "python_code": mechanic.get("python_code", ""),
+            "justification": mechanic.get("justification", ""),
+            "hook_location": mechanic.get("hook_location", "perform_move"),
+        },
+        "integration": integration,
+        "parent_metrics": {
+            k: v for k, v in parent_metrics.items()
+            if k not in {"trigger_count", "triggered_matches", "state_changed_by_mechanic_count"}
+        },
+        "child_metrics": {
+            k: v for k, v in child_metrics.items()
+            if k not in {"trigger_count", "triggered_matches", "state_changed_by_mechanic_count"}
+        },
+        "trigger_stats": trigger_stats,
+        "derived_scores": {
+            "playability": scores["playability"],
+            "balance_gap": scores["balance_gap"],
+            "depth": scores["depth"],
+            "aggregate": scores["aggregate"],
+        },
+        "parent_summary": "Baseline game without the new mechanic.",
+    }
+
+
+def get_last_runtime_report() -> dict:
+    return copy.deepcopy(_last_runtime_report)
+
+
+def playtest(mechanic: dict, game_class=None, integration: dict = None,
+             stage: int = 1, retry_count: int = 0) -> dict:
+    global _last_runtime_report
+
+    game_class = game_class or BaseGame
     name = mechanic.get("mechanic_name", "unknown")
     code = mechanic.get("python_code", "")
 
     print(f"[Playtest] Running games for '{name}'...")
 
-    playability, balance_gap = measure_playability_and_balance(code)
-    depth                    = measure_depth(code)
+    parent_balance = _collect_balance_metrics("", game_class=game_class)
+    parent_depth = _collect_depth_metrics("", game_class=game_class)
+    child_balance = _collect_balance_metrics(code, game_class=game_class)
+    child_depth = _collect_depth_metrics(code, game_class=game_class)
 
-    # Aggregate score — playability is a hard binary gate in verification,
-    # so it is excluded here to avoid inflating scores.
-    # Balance and depth each carry 50% weight.
-    aggregate = (
-        0.5 * (1.0 - balance_gap) +
-        0.5 * depth
+    parent_metrics = _merge_metrics(parent_balance, parent_depth)
+    child_metrics = _merge_metrics(child_balance, child_depth)
+    scores = _build_scores(child_metrics)
+
+    if integration is None:
+        integration = {
+            "schema_ok": True,
+            "syntax_ok": True,
+            "hook_ok": True,
+            "instantiation_ok": True,
+            "dry_run_ok": True,
+            "error_message": "",
+        }
+
+    _last_runtime_report = build_runtime_report(
+        mechanic,
+        integration,
+        parent_metrics,
+        child_metrics,
+        stage=stage,
+        retry_count=retry_count,
     )
 
-    scores = {
-        "playability":  round(playability, 3),
-        "balance_gap":  round(balance_gap, 3),
-        "depth":        round(depth, 3),
-        "aggregate":    round(aggregate, 3),
-    }
-
-    print(f"  [Playtest] playability={scores['playability']:.2f}  "
-          f"balance_gap={scores['balance_gap']:.2f}  "
-          f"depth={scores['depth']:.2f}  "
-          f"aggregate={scores['aggregate']:.2f}")
+    print(
+        f"  [Playtest] playability={scores['playability']:.2f}  "
+        f"balance_gap={scores['balance_gap']:.2f}  "
+        f"depth={scores['depth']:.2f}  "
+        f"aggregate={scores['aggregate']:.2f}"
+    )
 
     return scores
