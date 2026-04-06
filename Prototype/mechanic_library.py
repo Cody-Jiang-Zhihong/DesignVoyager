@@ -30,11 +30,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-LIBRARY_FILE      = "library.json"
-EMBEDDING_MODEL   = "text-embedding-3-small"
-SEMANTIC_WEIGHT   = 0.7   # how much semantic similarity matters vs aggregate score
-AGGREGATE_WEIGHT  = 0.3
-MAX_CONTEXT_USES  = 3     # a mechanic can appear as context at most this many times per run
+LIBRARY_FILE        = "library.json"
+EMBEDDING_MODEL     = "text-embedding-3-small"
+SEMANTIC_WEIGHT     = 0.75   # how much semantic similarity matters vs aggregate score
+AGGREGATE_WEIGHT    = 0.25
+SCORE_THRESHOLD     = 0.25  # minimum combined score for a mechanic to be recalled
+DIVERSITY_PENALTY   = 0.75    # penalty multiplier for mechanics with already-selected types
+SIMILARITY_THRESHOLD = 0.85   # max allowed similarity when adding new mechanic to library
+MAX_CONTEXT_USES    = 3     # a mechanic can appear as context at most this many times per run
 
 _client = OpenAI(
     api_key  = os.getenv("OPENAI_API_KEY", ""),
@@ -127,16 +130,31 @@ class MechanicLibrary:
         """
         Add a validated mechanic. Computes and stores an embedding for
         semantic retrieval in future iterations.
+        
+        Before adding, checks similarity against all existing mechanics.
+        Rejects if any existing mechanic has similarity >= SIMILARITY_THRESHOLD.
         """
+        mechanic_name = mechanic.get("mechanic_name", "unknown")
+        new_embedding = _embed(_mechanic_text(mechanic))
+        
+        # Check similarity with existing mechanics
+        for existing in self.mechanics:
+            existing_embedding = existing.get("embedding", [])
+            similarity = _cosine(new_embedding, existing_embedding)
+            if similarity >= SIMILARITY_THRESHOLD:
+                print(f"[Library] Rejected mechanic '{mechanic_name}': "
+                        f"too similar to '{existing['mechanic_name']}' (similarity: {similarity:.3f})")
+                return
+        
         entry = {
-            "mechanic_name": mechanic.get("mechanic_name", "unknown"),
+            "mechanic_name": mechanic_name,
             "mechanic_type": mechanic.get("mechanic_type", "other"),
             "description":   mechanic.get("description", ""),
             "justification": mechanic.get("justification", ""),
             "python_code":   mechanic.get("python_code", ""),
             "scores":        scores,
             "iteration":     iteration,
-            "embedding":     _embed(_mechanic_text(mechanic)),
+            "embedding":     new_embedding,
         }
         self.mechanics.append(entry)
         self.save()
@@ -190,11 +208,13 @@ class MechanicLibrary:
         """
         Rank mechanics by cosine similarity to the query embedding,
         blended with their aggregate playtest score.
-        A light diversity pass ensures we don't return all the same type.
+        Only recall mechanics with combined score > SCORE_THRESHOLD.
+        Return up to k mechanics, prioritizing diversity:
+        mechanics of the same type as already-selected ones get a diversity penalty.
         """
         query_emb = _embed(query)
 
-        scored = []
+        items = []
         for m in pool:
             sim = _cosine(query_emb, m.get("embedding", []))
             # Mechanics without an embedding get a neutral similarity score
@@ -203,32 +223,45 @@ class MechanicLibrary:
                 sim = 0.3
             agg     = m.get("scores", {}).get("aggregate", 0.5)
             combined = SEMANTIC_WEIGHT * sim + AGGREGATE_WEIGHT * agg
-            scored.append((combined, m))
+            items.append({
+                "mechanic": m,
+                "base_score": combined,
+                "adjusted_score": combined
+            })
 
-        scored.sort(key=lambda x: x[0], reverse=True)
+        # Filter by threshold — only consider mechanics above score threshold
+        threshold_passed = [item for item in items if item["base_score"] > SCORE_THRESHOLD]
 
-        # Diversity pass: prefer at most one mechanic per type in the top-k
-        selected   = []
-        seen_types = set()
-        overflow   = []
+        if not threshold_passed:
+            return []
 
-        for _, m in scored:
-            t = m.get("mechanic_type", "other")
-            if t not in seen_types:
-                selected.append(m)
-                seen_types.add(t)
-            else:
-                overflow.append(m)
-            if len(selected) == k:
+        final_count = min(k, len(threshold_passed))
+        selected = []
+        selected_types = set()
+
+        # Iteratively select mechanics with diversity penalty applied
+        for _ in range(final_count):
+            if not threshold_passed:
                 break
 
-        # Fill remaining slots from overflow (still ranked by combined score)
-        for m in overflow:
-            if len(selected) >= k:
-                break
-            selected.append(m)
+            # Select the highest-scoring mechanic from remaining
+            best_item = max(threshold_passed, key=lambda x: x["adjusted_score"])
 
-        return selected[:k]
+            # Remove from candidate pool
+            threshold_passed.remove(best_item)
+
+            # Add to result
+            selected.append(best_item["mechanic"])
+            best_type = best_item["mechanic"].get("mechanic_type", "other")
+            selected_types.add(best_type)
+
+            # Apply diversity penalty: reduce score of remaining mechanics with same type
+            for item in threshold_passed:
+                item_type = item["mechanic"].get("mechanic_type", "other")
+                if item_type in selected_types:
+                    item["adjusted_score"] = item["base_score"] * DIVERSITY_PENALTY
+
+        return selected
 
     def _retrieve_diversity(self, k: int, pool: list) -> list:
         """
@@ -263,3 +296,30 @@ class MechanicLibrary:
             return "Library is empty."
         names = [m["mechanic_name"] for m in self.mechanics]
         return f"Library has {len(self.mechanics)} mechanics: {', '.join(names)}"
+
+
+# ── Test ──────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    lib = MechanicLibrary()
+    
+    print("\n" + "="*70)
+    print("Testing Semantic Retrieval (with query)")
+    print("="*70)
+    query = "I want scoring mechanics"
+    results = lib.retrieve(k=4, query=query)
+    print(f"\nQuery: '{query}'")
+    print(f"Retrieved {len(results)} mechanics:\n")
+    for i, m in enumerate(results, 1):
+        print(f"{i}. {m['mechanic_name']} | Type: {m['mechanic_type']} | {m['description']}")
+    
+    print("\n" + "="*70)
+    print("Testing Diversity Retrieval (without query)")
+    print("="*70)
+    lib._context_use_count = {}
+    results = lib.retrieve(k=3, query=None)
+    print(f"\nRetrieved {len(results)} mechanics:\n")
+    for i, m in enumerate(results, 1):
+        print(f"{i}. {m['mechanic_name']} | Type: {m['mechanic_type']} | {m['description']}")
+    
+    print("\n" + "="*70 + "\n")

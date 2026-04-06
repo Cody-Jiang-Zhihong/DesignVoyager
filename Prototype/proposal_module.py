@@ -17,11 +17,11 @@ from openai import OpenAI
 
 load_dotenv()
 
-API_KEY  = os.getenv("OPENAI_API_KEY", "PASTE_YOUR_KEY_HERE")
+API_KEY  = os.getenv("OPENAI_API_KEY", "PLEASE_SET_KEY")
 BASE_URL = os.getenv("OPENAI_BASE_URL", None)
 
 client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
-MODEL  = "gpt-4"
+MODEL  = "gpt-5.4-nano"
 MAX_REPAIR_ATTEMPTS = 3
 
 
@@ -54,7 +54,7 @@ Always respond in this exact JSON format (raw JSON only, no markdown):
 
 
 def build_proposal_prompt(game_skeleton: str, retrieved_mechanics: list,
-                          stage_prompt: str = "") -> str:
+                          stage_prompt: str = "", user_prompt: str = "") -> str:
     mechanics_section = ""
     if retrieved_mechanics:
         mechanics_section = "\n\nHere are some previously validated mechanics for reference:\n"
@@ -66,10 +66,12 @@ def build_proposal_prompt(game_skeleton: str, retrieved_mechanics: list,
                 f"Code:\n{mech.get('python_code', '')}\n"
             )
     stage_section = f"\n\n{stage_prompt}" if stage_prompt else ""
+    user_section = f"\n\n{user_prompt}" if user_prompt else ""
     return (
         f"Current game:\n{game_skeleton}"
         f"{mechanics_section}"
-        f"{stage_section}\n\n"
+        f"{stage_section}"
+        f"{user_section}\n\n"
         "Propose ONE new mechanic that meaningfully extends this game. "
         "Respond with raw JSON only."
     )
@@ -106,7 +108,7 @@ def parse_gpt_response(text: str) -> Optional[dict]:
 
 
 def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
-                     stage_prompt: str = "") -> Optional[dict]:
+                     stage_prompt: str = "", user_prompt: str = "") -> Optional[dict]:
     """
     Main function: ask GPT-4 to propose a mechanic, repair if broken.
 
@@ -115,6 +117,7 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
         retrieved_mechanics: Previously validated mechanics shown as context.
         stage_prompt:        Curriculum instruction injected into the prompt
                              (e.g. "Stage 1 — simple mechanics only").
+        user_prompt:         User customization prompt for tailored mechanic generation.
 
     Returns a dict with keys: mechanic_name, mechanic_type, description,
     justification, python_code — or None if all attempts failed.
@@ -127,7 +130,7 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user",   "content": build_proposal_prompt(
-            game_skeleton, retrieved_mechanics, stage_prompt)},
+            game_skeleton, retrieved_mechanics, stage_prompt, user_prompt)},
     ]
 
     for attempt in range(1, MAX_REPAIR_ATTEMPTS + 1):
@@ -151,7 +154,7 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
         is_valid, error = validate_python_syntax(code)
 
         if is_valid:
-            print(f"  [Proposal] ✓ '{mechanic.get('mechanic_name')}'")
+            print(f"  [Proposal] ✓ '{mechanic.get('mechanic_name')}' | Type: {mechanic.get('mechanic_type')} | {mechanic.get('description')}")
             return mechanic
         else:
             print(f"  [Proposal] Syntax error: {error}")

@@ -37,11 +37,13 @@ load_dotenv()
 
 
 # ── Default settings ──────────────────────────────────────────────────────────
-DEFAULT_ITERATIONS = 3   # How many mechanics to try to add to the library
-DEFAULT_TOP_K      = 3   # How many existing mechanics to show GPT-4 as examples
+DEFAULT_ITERATIONS = 1   # How many mechanics to try to add to the library
+DEFAULT_TOP_K      = 3  # How many existing mechanics to show GPT-4 as examples
+DEFAULT_USER_PROMPT = "I want a score-based mechanic."  # Optional extra instruction to GPT-4 for customized mechanic generation
 
 
-def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K):
+def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K, 
+             user_prompt: str = DEFAULT_USER_PROMPT):
     """
     Run the full DesignVoyager loop for n_iterations.
     Each iteration tries to produce one accepted mechanic.
@@ -55,6 +57,7 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K)
     print("=" * 60)
     print(f"  Iterations : {n_iterations}")
     print(f"  Context k  : {top_k}")
+    print(f"  User Prompt: {user_prompt[:50]}..." if len(user_prompt) > 50 else f"  User Prompt: {user_prompt}")
     print(f"  Library    : {library.summary()}")
     print(f"  Curriculum : {curriculum.progress_str()}")
     print("=" * 60 + "\n")
@@ -65,16 +68,19 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K)
     for iteration in range(1, n_iterations + 1):
         print(f"\n{'─' * 60}")
         print(f"  ITERATION {iteration} / {n_iterations}  |  {curriculum.progress_str()}")
+        print(f"  User Prompt: {user_prompt}")
         print(f"{'─' * 60}")
 
         # ── Step 1: Retrieve context from library ──────────────────────────
-        retrieval_query = f"{game_skeleton} {curriculum.stage_name()}"
-        retrieved = library.retrieve(k=top_k, query=retrieval_query)
+        retrieved = library.retrieve(k=top_k, query=user_prompt)
         print(f"[Loop] Retrieved {len(retrieved)} mechanics for context.")
+        for i, mech in enumerate(retrieved, 1):
+            print(f"  [{i}] {mech.get('mechanic_name')} | Type: {mech.get('mechanic_type')} | {mech.get('description')}")
 
         # ── Step 2: Propose a mechanic ─────────────────────────────────────
         mechanic = propose_mechanic(game_skeleton, retrieved,
-                                    stage_prompt=curriculum.stage_prompt())
+                                    stage_prompt=curriculum.stage_prompt(),
+                                    user_prompt=user_prompt)
         if mechanic is None:
             print("[Loop] Proposal failed — skipping this iteration.\n")
             curriculum.on_discard()
@@ -87,7 +93,7 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K)
         if outcome == REVISE:
             print("[Loop] Sending for revision...\n")
             revised_mechanic = _revise(mechanic, game_skeleton, retrieved,
-                                       curriculum.stage_prompt())
+                                       curriculum.stage_prompt(), user_prompt)
             if revised_mechanic is None:
                 print("[Loop] Revision failed — discarding.\n")
                 curriculum.on_discard()
@@ -163,9 +169,9 @@ def _get_scores(mechanic: dict) -> dict:
 
 
 def _revise(original_mechanic: dict, game_skeleton: str, retrieved: list,
-            stage_prompt: str = ""):
+            stage_prompt: str = "", user_prompt: str = ""):
     """
-    Ask GPT-4 to revise a failing mechanic, keeping the same stage prompt.
+    Ask GPT-4 to revise a failing mechanic, keeping the same stage prompt and user prompt.
     """
     feedback = original_mechanic.get("_revision_feedback", "Please improve this mechanic.")
     name     = original_mechanic.get("mechanic_name", "unknown")
@@ -184,7 +190,7 @@ def _revise(original_mechanic: dict, game_skeleton: str, retrieved: list,
     )
 
     return propose_mechanic(skeleton_with_feedback, revision_context,
-                            stage_prompt=stage_prompt)
+                            stage_prompt=stage_prompt, user_prompt=user_prompt)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
@@ -203,5 +209,11 @@ if __name__ == "__main__":
         default=DEFAULT_TOP_K,
         help=f"Mechanics retrieved from library as GPT-4 context (default: {DEFAULT_TOP_K})"
     )
+    parser.add_argument(
+        "--user-prompt", "-u",
+        type=str,
+        default=DEFAULT_USER_PROMPT,
+        help="User customization prompt for tailored mechanic generation (e.g., 'focus on flip mechanics')"
+    )
     args = parser.parse_args()
-    run_loop(n_iterations=args.iterations, top_k=args.top_k)
+    run_loop(n_iterations=args.iterations, top_k=args.top_k, user_prompt=args.user_prompt)
