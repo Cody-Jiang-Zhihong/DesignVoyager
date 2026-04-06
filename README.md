@@ -10,7 +10,8 @@ Current `Prototype/` capabilities:
 - MCTS-based playtesting for both game modes
 - Cross-platform subprocess-based playtest execution for Windows and macOS
 - Runtime self-verification JSON reports under `Prototype/runtime_reports/`
-- Sample experiment write-up in `Prototype/board_experiment_record_and_report.md`
+- Sample board experiment write-up in `Prototype/board_experiment_record_and_report.md`
+- Sample card experiment write-up in `Prototype/card_experiment_record_and_report.md`
 
 Useful entry points:
 

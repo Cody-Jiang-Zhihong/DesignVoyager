@@ -19,6 +19,7 @@ This is the active DesignVoyager prototype.
 - `self_verification_sample.json`: schema example for self-verification integration
 - `runtime_reports/`: generated JSON reports from actual runs
 - `board_experiment_record_and_report.md`: sample board experiment write-up
+- `card_experiment_record_and_report.md`: sample card experiment write-up
 
 ## Running
 
@@ -67,3 +68,4 @@ Each run produces a structured JSON file containing:
 - Board and card playtests both use MCTS.
 - `self_verification_sample.json` is the schema reference.
 - `board_experiment_record_and_report.md` is a repo-friendly exported experiment document.
+- `card_experiment_record_and_report.md` is a repo-friendly exported card-game experiment document.
