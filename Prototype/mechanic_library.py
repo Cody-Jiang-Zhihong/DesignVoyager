@@ -126,7 +126,7 @@ class MechanicLibrary:
 
     # ── Add ───────────────────────────────────────────────────────────────────
 
-    def add(self, mechanic: dict, scores: dict, iteration: int = 0):
+    def add(self, mechanic: dict, scores: dict, iteration: int = 0) -> bool:
         """
         Add a validated mechanic. Computes and stores an embedding for
         semantic retrieval in future iterations.
@@ -144,7 +144,7 @@ class MechanicLibrary:
             if similarity >= SIMILARITY_THRESHOLD:
                 print(f"[Library] Rejected mechanic '{mechanic_name}': "
                         f"too similar to '{existing['mechanic_name']}' (similarity: {similarity:.3f})")
-                return
+                return False
         
         entry = {
             "mechanic_name": mechanic_name,
@@ -160,6 +160,7 @@ class MechanicLibrary:
         self.save()
         print(f"[Library] Added mechanic '{entry['mechanic_name']}' "
               f"(library size: {len(self.mechanics)})")
+        return True
 
     # ── Retrieve ──────────────────────────────────────────────────────────────
 

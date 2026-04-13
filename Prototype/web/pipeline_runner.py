@@ -24,13 +24,23 @@ from playtest_module import get_last_runtime_report, playtest, run_single_game_r
 from proposal_module import propose_mechanic
 from verification_module import ACCEPT, DISCARD, REVISE, verify
 
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 GAME_REGISTRY = {
-    "board": (BaseGame, "library.json", "discarded_board.json"),
-    "card": (CardGame, "library_card.json", "discarded_card.json"),
+    "board": (
+        BaseGame,
+        os.path.join(PROJECT_DIR, "library.json"),
+        os.path.join(PROJECT_DIR, "discarded_board.json"),
+    ),
+    "card": (
+        CardGame,
+        os.path.join(PROJECT_DIR, "library_card.json"),
+        os.path.join(PROJECT_DIR, "discarded_card.json"),
+    ),
 }
 
-LIBRARY_CARDS_FILE = "library_cards.json"
+LIBRARY_CARDS_FILE = os.path.join(PROJECT_DIR, "library_cards.json")
+MAX_REPLAY_ATTEMPTS = 5
 
 
 def _save_library_card(card: dict):
@@ -222,9 +232,12 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
         })
 
         if decision == ACCEPT:
+            advanced = curriculum.on_accept()
+            accepted_count += 1
+            added = False
             with _suppress_stdout():
-                library.add(mechanic, scores, iteration=iteration)
-            if replay_data:
+                added = library.add(mechanic, scores, iteration=iteration)
+            if added:
                 card = {
                     "game_type": game_name,
                     "mechanic_name": mechanic.get("mechanic_name", ""),
@@ -234,10 +247,14 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
                     "iteration": iteration,
                     "runtime_report": get_last_runtime_report(),
                 }
-                _save_library_card(card)
+                if replay_data:
+                    _save_library_card(card)
                 emitter.emit("mechanic_accepted", card)
-            advanced = curriculum.on_accept()
-            accepted_count += 1
+            else:
+                emitter.emit("library_skip", {
+                    "mechanic_name": mechanic.get("mechanic_name", ""),
+                    "reason": "duplicate_library_entry",
+                })
             if advanced:
                 emitter.emit("curriculum_advance", {
                     "new_stage_name": curriculum.stage_name(),
@@ -275,7 +292,7 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
     replay_data = None
     try:
         mechanic_fn = load_mechanic_fn(mechanic.get("python_code", ""))
-        replay = run_single_game_recorded(
+        replay = _record_best_replay(
             mechanic_fn=mechanic_fn,
             game_class=game_class,
         )
@@ -287,6 +304,8 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
             "moves": replay["moves"],
             "winner": replay["winner"],
             "total_turns": replay["turns"],
+            "trigger_count": replay.get("trigger_count", 0),
+            "state_changed_by_mechanic_count": replay.get("state_changed_by_mechanic_count", 0),
         }
         emitter.emit("replay_data", replay_data)
     except Exception:
@@ -304,3 +323,58 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
     if decision == REVISE:
         mechanic["_revision_feedback"] = feedback
     return decision, scores, replay_data
+
+
+def _record_best_replay(mechanic_fn, game_class):
+    best_replay = None
+    best_score = -1
+
+    for _ in range(MAX_REPLAY_ATTEMPTS):
+        replay = run_single_game_recorded(
+            mechanic_fn=mechanic_fn,
+            game_class=game_class,
+        )
+        score = _score_replay_for_tutorial(replay)
+        if score > best_score:
+            best_replay = replay
+            best_score = score
+        if score >= 100:
+            return replay
+
+    return best_replay
+
+
+def _score_replay_for_tutorial(replay: dict) -> int:
+    moves = replay.get("moves", [])
+    if not moves:
+        return 0
+
+    # Strongest signal: mechanic visibly changed board state on a turn.
+    for move in moves:
+        before = move.get("state_before_mechanics") or {}
+        after = move.get("state_after") or {}
+        before_board = before.get("board")
+        after_board = after.get("board")
+        if before_board and after_board and before_board != after_board:
+            return 100
+
+    # Extra-turn signal: same player moves twice in a row.
+    for i in range(len(moves) - 1):
+        if moves[i].get("player") == moves[i + 1].get("player"):
+            return 80
+
+    # Custom-state change still gives the tutorial something to explain.
+    for i in range(1, len(moves)):
+        prev_state = moves[i - 1].get("state_after") or {}
+        curr_state = moves[i].get("state_after") or {}
+        if prev_state.get("custom_state") != curr_state.get("custom_state"):
+            return 60
+
+    # Fallback: prefer replays where the mechanic at least triggered internally.
+    trigger_count = replay.get("trigger_count", 0)
+    state_changed = replay.get("state_changed_by_mechanic_count", 0)
+    if state_changed > 0:
+        return 50 + state_changed
+    if trigger_count > 0:
+        return 10 + trigger_count
+    return 1

@@ -136,7 +136,7 @@ body {
 
 #main-layout {
     display: grid;
-    grid-template-columns: 1fr 244px 320px;
+    grid-template-columns: minmax(560px, 1.35fr) minmax(320px, 0.8fr) minmax(420px, 1fr);
     gap: 0;
     height: calc(100vh - 56px);
 }
@@ -145,12 +145,15 @@ body {
 
 #pipeline-log {
     overflow-y: auto;
-    padding: 20px 28px;
+    padding: 20px 22px 28px;
     scroll-behavior: smooth;
+    display: flex;
+    justify-content: center;
 }
 
 #log-content {
-    max-width: 780px;
+    width: min(100%, 860px);
+    max-width: 860px;
 }
 
 .empty-state {
@@ -461,11 +464,11 @@ body {
     background: var(--bg-surface);
     border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
-    padding: 16px 14px;
+    padding: 18px 18px 24px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
 }
 
 #tutorial-panel h3 {
@@ -479,25 +482,29 @@ body {
 
 .tutorial-empty {
     flex: 1;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 20px 0;
+    padding: 24px 18px;
     font-size: 13px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    min-height: 420px;
 }
 
 .tutorial-mech-label {
     color: var(--purple);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
-    text-align: center;
-    margin-bottom: 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 216px;
+    text-align: left;
+    margin-bottom: 12px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    width: 100%;
 }
 
 .tutorial-phase-label {
@@ -528,10 +535,10 @@ body {
 .tutorial-grid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    gap: 2px;
-    width: 216px;
+    gap: 4px;
+    width: min(100%, 280px);
     aspect-ratio: 1;
-    margin: 0 auto;
+    margin: 0 auto 8px;
     transition: opacity 0.25s ease;
 }
 
@@ -548,7 +555,7 @@ body {
     border: 1px solid var(--border);
     border-radius: 2px;
     font-family: var(--font-mono);
-    font-size: 14px;
+    font-size: 17px;
     font-weight: 700;
     transition: background 0.2s, box-shadow 0.2s;
 }
@@ -569,17 +576,17 @@ body {
 
 .tutorial-caption {
     color: var(--text-dim);
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.5;
-    text-align: center;
-    margin-top: 10px;
-    max-width: 216px;
+    text-align: left;
+    margin-top: 8px;
+    width: 100%;
 }
 
 .tutorial-no-trigger {
     color: var(--text-dim);
-    font-size: 11px;
-    text-align: center;
+    font-size: 12px;
+    text-align: left;
     margin-top: 10px;
     font-style: italic;
 }
@@ -587,8 +594,13 @@ body {
 #tutorial-content {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    min-height: 420px;
 }
 
 /* ── Replay Panel ───────────────────────────────────────────────────────── */
@@ -596,8 +608,10 @@ body {
 #replay-panel {
     background: var(--bg-surface);
     border-left: 1px solid var(--border);
-    padding: 16px;
+    padding: 18px 18px 24px;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 #replay-panel h3 {
@@ -612,9 +626,10 @@ body {
 #board-grid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    gap: 3px;
+    gap: 4px;
     aspect-ratio: 1;
-    max-width: 288px;
+    width: min(100%, 360px);
+    max-width: 360px;
     margin: 0 auto;
 }
 
@@ -627,7 +642,7 @@ body {
     border: 1px solid var(--border);
     border-radius: 3px;
     font-family: var(--font-mono);
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 700;
     transition: background 0.2s, transform 0.15s;
 }
@@ -646,6 +661,8 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 12px;
+    width: min(100%, 360px);
+    margin: 0 auto;
 }
 
 .card-hand {
@@ -712,7 +729,7 @@ body {
 
 /* Replay controls */
 #replay-controls {
-    margin-top: 16px;
+    margin-top: 14px;
     text-align: center;
 }
 
@@ -767,7 +784,7 @@ body {
 
 #replay-empty {
     text-align: center;
-    padding: 40px 0;
+    padding: 80px 0;
 }
 
 /* Mechanic info card */
@@ -777,6 +794,21 @@ body {
     border-radius: 6px;
     padding: 10px 12px;
     margin-bottom: 12px;
+}
+
+#replay-container {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    min-height: 520px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.replay-view {
+    width: 100%;
 }
 
 #mechanic-info-name {
@@ -1029,7 +1061,7 @@ body {
 /* Below 1100px: hide tutorial panel, revert to 2-col */
 @media (max-width: 1100px) {
     #main-layout {
-        grid-template-columns: 1fr 320px;
+        grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
     }
 
     #tutorial-panel {
@@ -1051,5 +1083,11 @@ body {
 
     #pipeline-log {
         min-height: 60vh;
+    }
+
+    .prompt-label,
+    .prompt-label input[type="text"] {
+        min-width: 0;
+        width: 100%;
     }
 }

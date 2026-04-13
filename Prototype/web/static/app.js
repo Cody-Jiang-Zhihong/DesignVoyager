@@ -810,6 +810,19 @@ const tutorialPlayer = {
             this._stopLoop();
             tutorialPhaseLabel.classList.add('hidden');
             tutorialNoTrigger.classList.remove('hidden');
+            const triggerCount = d.trigger_count || 0;
+            const stateChangeCount = d.state_changed_by_mechanic_count || 0;
+            if (triggerCount > 0 || stateChangeCount > 0) {
+                tutorialNoTrigger.textContent =
+                    `No clear visual before/after was found in the selected replay, ` +
+                    `but the mechanic triggered ${triggerCount} time(s)` +
+                    (stateChangeCount > 0
+                        ? ` and changed game state ${stateChangeCount} time(s).`
+                        : '.');
+            } else {
+                tutorialNoTrigger.textContent =
+                    'No visible mechanic effect was found in the selected replay, and no internal trigger was recorded.';
+            }
             tutorialGrid.innerHTML = '';
             return;
         }
@@ -1065,11 +1078,19 @@ const libraryManager = {
 
     _startAnimation(id, cardEl) {
         const card = this.cards[id];
-        if (!card || !card.replay) return;
+        if (!card) return;
+
+        const gridEl = cardEl.querySelector('.lib-tutorial-grid');
+        const phaseLabelEl = cardEl.querySelector('.lib-phase-label');
+
+        if (!card.replay) {
+            phaseLabelEl.textContent = 'NO REPLAY';
+            phaseLabelEl.className = 'lib-phase-label phase-before';
+            gridEl.innerHTML = '<div class="lib-no-trigger">Accepted mechanic with no saved replay metadata yet</div>';
+            return;
+        }
 
         const trigger = detectMechanicTrigger(card.replay.moves);
-        const gridEl      = cardEl.querySelector('.lib-tutorial-grid');
-        const phaseLabelEl = cardEl.querySelector('.lib-phase-label');
 
         if (!trigger) {
             gridEl.innerHTML = '<div class="lib-no-trigger">Not triggered in this replay</div>';

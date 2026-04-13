@@ -25,9 +25,19 @@ import discarded_library
 
 load_dotenv()
 
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 GAME_REGISTRY = {
-    "board": (BaseGame, "library.json", "discarded_board.json"),
-    "card": (CardGame, "library_card.json", "discarded_card.json"),
+    "board": (
+        BaseGame,
+        os.path.join(PROJECT_DIR, "library.json"),
+        os.path.join(PROJECT_DIR, "discarded_board.json"),
+    ),
+    "card": (
+        CardGame,
+        os.path.join(PROJECT_DIR, "library_card.json"),
+        os.path.join(PROJECT_DIR, "discarded_card.json"),
+    ),
 }
 
 DEFAULT_ITERATIONS = 1
@@ -134,10 +144,13 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
 
         if outcome == ACCEPT:
             scores = _get_scores()
-            library.add(mechanic, scores, iteration=iteration)
+            added = library.add(mechanic, scores, iteration=iteration)
             advanced = curriculum.on_accept()
             accepted_count += 1
-            print(f"[Loop] accepted. Library now has {library.size()} mechanics.")
+            if added:
+                print(f"[Loop] accepted and stored. Library now has {library.size()} mechanics.")
+            else:
+                print("[Loop] accepted by verification, but not stored because it duplicates an existing library entry.")
             if advanced:
                 print(f"[Curriculum] advanced to {curriculum.stage_name()}.")
         else:

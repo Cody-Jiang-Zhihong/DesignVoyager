@@ -24,6 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 
 app = FastAPI(title="DesignVoyager Dashboard")
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Serve static files (HTML, CSS, JS)
 _static_dir = os.path.join(os.path.dirname(__file__), "static")
@@ -39,19 +40,10 @@ async def root():
 @app.get("/api/library-cards")
 async def get_library_cards():
     """
-    Return all accepted mechanic cards saved by previous runs.
-    Each card contains mechanic name, description, scores, and replay data
-    sufficient to render the library browser and nano tutorial animation.
+    Return accepted mechanics from the real library files, merged with optional
+    dashboard replay metadata when available.
     """
-    cards_file = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "library_cards.json",
-    )
-    try:
-        with open(cards_file, "r") as f:
-            cards = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        cards = []
+    cards = _build_library_cards()
     return JSONResponse(content=cards)
 
 
@@ -119,8 +111,7 @@ def _run_pipeline_thread(emitter, game_name, iterations, top_k, stop_event, user
     sending them as error events so the browser knows what happened.
     """
     # Change to the project root so library.json paths resolve correctly
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    os.chdir(project_root)
+    os.chdir(PROJECT_DIR)
 
     from web.pipeline_runner import run_web_pipeline
     try:
@@ -177,3 +168,64 @@ async def _stream_events(ws, event_queue, pipeline_thread, stop_event):
 async def _receive_or_none(ws):
     """Try to receive a WebSocket message; returns None if nothing available."""
     return await ws.receive_text()
+
+
+def _load_json_file(path: str, default):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return default
+
+
+def _replay_metadata_key(card: dict):
+    return (
+        card.get("game_type", ""),
+        card.get("mechanic_name", ""),
+        card.get("iteration"),
+    )
+
+
+def _build_library_cards():
+    board_library = _load_json_file(os.path.join(PROJECT_DIR, "library.json"), [])
+    card_library = _load_json_file(os.path.join(PROJECT_DIR, "library_card.json"), [])
+    replay_cards = _load_json_file(os.path.join(PROJECT_DIR, "library_cards.json"), [])
+
+    replay_by_key = {}
+    replay_by_name = {}
+    for replay_card in replay_cards:
+        replay_by_key[_replay_metadata_key(replay_card)] = replay_card
+        replay_by_name[(replay_card.get("game_type", ""), replay_card.get("mechanic_name", ""))] = replay_card
+
+    merged_cards = []
+    for game_type, entries in (("board", board_library), ("card", card_library)):
+        for entry in entries:
+            base_card = {
+                "game_type": game_type,
+                "mechanic_name": entry.get("mechanic_name", ""),
+                "description": entry.get("description", ""),
+                "scores": entry.get("scores", {}),
+                "iteration": entry.get("iteration"),
+                "runtime_report": None,
+                "replay": None,
+            }
+            replay_card = (
+                replay_by_key.get(_replay_metadata_key(base_card))
+                or replay_by_name.get((game_type, base_card["mechanic_name"]))
+            )
+            if replay_card:
+                base_card.update({
+                    "description": replay_card.get("description", base_card["description"]),
+                    "replay": replay_card.get("replay"),
+                    "runtime_report": replay_card.get("runtime_report"),
+                })
+            merged_cards.append(base_card)
+
+    merged_cards.sort(
+        key=lambda card: (
+            card.get("game_type", ""),
+            card.get("iteration") if card.get("iteration") is not None else -1,
+            card.get("mechanic_name", ""),
+        )
+    )
+    return merged_cards

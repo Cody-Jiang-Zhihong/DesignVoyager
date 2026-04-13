@@ -9,6 +9,7 @@ Supports both board and card games. Board mode keeps the MCTS-based playtest.
 import argparse
 import contextlib
 import io
+import os
 
 from dotenv import load_dotenv
 from rich import box
@@ -30,9 +31,19 @@ load_dotenv()
 
 console = Console()
 
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 GAME_REGISTRY = {
-    "board": (BaseGame, "library.json", "discarded_board.json"),
-    "card": (CardGame, "library_card.json", "discarded_card.json"),
+    "board": (
+        BaseGame,
+        os.path.join(PROJECT_DIR, "library.json"),
+        os.path.join(PROJECT_DIR, "discarded_board.json"),
+    ),
+    "card": (
+        CardGame,
+        os.path.join(PROJECT_DIR, "library_card.json"),
+        os.path.join(PROJECT_DIR, "discarded_card.json"),
+    ),
 }
 
 
@@ -235,9 +246,13 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
 
         if decision == ACCEPT:
             with suppress():
-                library.add(mechanic, scores, iteration=iteration)
+                added = library.add(mechanic, scores, iteration=iteration)
             advanced = curriculum.on_accept()
             accepted_count += 1
+            if not added:
+                console.print(
+                    "  [dim yellow]Accepted by verification, but not stored because it duplicates an existing library entry.[/dim yellow]"
+                )
             if advanced:
                 console.print(Panel(
                     f"  [bold yellow]Unlocked {curriculum.stage_name()}[/bold yellow]\n"

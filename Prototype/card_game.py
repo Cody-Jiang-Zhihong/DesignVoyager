@@ -167,10 +167,11 @@ class CardGame(GameInterface):
 
 
 def _fresh_state() -> dict:
+    shared_hand = [random.randint(1, MAX_CARD) for _ in range(HAND_SIZE)]
     return {
         "hands": {
-            PLAYER_1: [random.randint(1, MAX_CARD) for _ in range(HAND_SIZE)],
-            PLAYER_2: [random.randint(1, MAX_CARD) for _ in range(HAND_SIZE)],
+            PLAYER_1: shared_hand.copy(),
+            PLAYER_2: shared_hand.copy(),
         },
         "scores": {PLAYER_1: 0, PLAYER_2: 0},
         "current_player": PLAYER_1,

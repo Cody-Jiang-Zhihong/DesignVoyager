@@ -14,6 +14,7 @@ import queue
 import numpy as np
 
 from base_game import BaseGame, PLAYER_1, PLAYER_2
+from card_game import CardGame
 from compile_check import load_mechanic_fn
 from mcts_agent import MCTSAgent
 
@@ -28,6 +29,12 @@ GAME_TIMEOUT = 4.0
 BALANCE_MCTS_SIMS = 24
 DEPTH_STRONG_SIMS = 64
 DEPTH_WEAK_SIMS = 16
+
+CARD_N_GAMES_BALANCE = 16
+CARD_N_GAMES_DEPTH = 16
+CARD_BALANCE_MCTS_SIMS = 40
+CARD_DEPTH_STRONG_SIMS = 96
+CARD_DEPTH_WEAK_SIMS = 24
 
 _last_runtime_report = {}
 
@@ -63,6 +70,25 @@ def _build_agent(game_class, spec: dict):
     return game_class.make_random_agent()
 
 
+def _metric_config(game_class) -> dict:
+    is_card = issubclass(game_class, CardGame)
+    if is_card:
+        return {
+            "n_balance": CARD_N_GAMES_BALANCE,
+            "n_depth": CARD_N_GAMES_DEPTH,
+            "balance_sims": CARD_BALANCE_MCTS_SIMS,
+            "depth_strong_sims": CARD_DEPTH_STRONG_SIMS,
+            "depth_weak_sims": CARD_DEPTH_WEAK_SIMS,
+        }
+    return {
+        "n_balance": N_GAMES_BALANCE,
+        "n_depth": N_GAMES_DEPTH,
+        "balance_sims": BALANCE_MCTS_SIMS,
+        "depth_strong_sims": DEPTH_STRONG_SIMS,
+        "depth_weak_sims": DEPTH_WEAK_SIMS,
+    }
+
+
 def _wrap_mechanic(mechanic_fn, tracker: dict):
     if mechanic_fn is None:
         return None
@@ -80,7 +106,14 @@ def _wrap_mechanic(mechanic_fn, tracker: dict):
     return wrapped
 
 
-def run_single_game(mechanic_fn=None, agent1=None, agent2=None, game_class=None) -> dict:
+def _set_starting_player(game, starting_player):
+    if starting_player is None:
+        return
+    if hasattr(game, "state") and isinstance(game.state, dict):
+        game.state["current_player"] = starting_player
+
+
+def run_single_game(mechanic_fn=None, agent1=None, agent2=None, game_class=None, starting_player=None) -> dict:
     game_class = game_class or BaseGame
     agent1 = agent1 or game_class.make_random_agent()
     agent2 = agent2 or game_class.make_random_agent()
@@ -91,6 +124,7 @@ def run_single_game(mechanic_fn=None, agent1=None, agent2=None, game_class=None)
     }
     wrapped_mechanic = _wrap_mechanic(mechanic_fn, tracker)
     game = game_class.create(mechanic_fn=wrapped_mechanic, agent1=agent1, agent2=agent2)
+    _set_starting_player(game, starting_player)
 
     total_turns = 0
     multi_choice_turns = 0
@@ -166,10 +200,11 @@ def run_single_game(mechanic_fn=None, agent1=None, agent2=None, game_class=None)
         game.advance_turn()
 
 
-def run_single_game_recorded(mechanic_fn=None, game_class=None, agent1=None, agent2=None) -> dict:
+def run_single_game_recorded(mechanic_fn=None, game_class=None, agent1=None, agent2=None, starting_player=None) -> dict:
     game_class = game_class or BaseGame
-    agent1 = agent1 or MCTSAgent(simulations=DEPTH_STRONG_SIMS)
-    agent2 = agent2 or MCTSAgent(simulations=DEPTH_STRONG_SIMS)
+    config = _metric_config(game_class)
+    agent1 = agent1 or MCTSAgent(simulations=config["depth_strong_sims"])
+    agent2 = agent2 or MCTSAgent(simulations=config["depth_strong_sims"])
 
     tracker = {
         "trigger_count": 0,
@@ -177,6 +212,7 @@ def run_single_game_recorded(mechanic_fn=None, game_class=None, agent1=None, age
     }
     wrapped_mechanic = _wrap_mechanic(mechanic_fn, tracker)
     game = game_class.create(mechanic_fn=wrapped_mechanic, agent1=agent1, agent2=agent2)
+    _set_starting_player(game, starting_player)
 
     initial_state = serialize_state(game.get_state())
     move_log = []
@@ -190,6 +226,8 @@ def run_single_game_recorded(mechanic_fn=None, game_class=None, agent1=None, age
                 "turns": turn_count,
                 "initial_state": initial_state,
                 "moves": move_log,
+                "trigger_count": tracker["trigger_count"],
+                "state_changed_by_mechanic_count": tracker["state_changed_by_mechanic_count"],
             }
 
         state = game.get_state()
@@ -202,6 +240,8 @@ def run_single_game_recorded(mechanic_fn=None, game_class=None, agent1=None, age
                 "turns": turn_count,
                 "initial_state": initial_state,
                 "moves": move_log,
+                "trigger_count": tracker["trigger_count"],
+                "state_changed_by_mechanic_count": tracker["state_changed_by_mechanic_count"],
             }
 
         player = state.get("current_player")
@@ -215,6 +255,8 @@ def run_single_game_recorded(mechanic_fn=None, game_class=None, agent1=None, age
                 "turns": turn_count,
                 "initial_state": initial_state,
                 "moves": move_log,
+                "trigger_count": tracker["trigger_count"],
+                "state_changed_by_mechanic_count": tracker["state_changed_by_mechanic_count"],
             }
 
         game.perform_move(move)
@@ -241,12 +283,14 @@ def run_single_game_recorded(mechanic_fn=None, game_class=None, agent1=None, age
                 "turns": turn_count,
                 "initial_state": initial_state,
                 "moves": move_log,
+                "trigger_count": tracker["trigger_count"],
+                "state_changed_by_mechanic_count": tracker["state_changed_by_mechanic_count"],
             }
 
         game.advance_turn()
 
 
-def _play_game_worker(code: str, agent1_spec: dict, agent2_spec: dict, game_class, result_queue):
+def _play_game_worker(code: str, agent1_spec: dict, agent2_spec: dict, game_class, result_queue, starting_player):
     try:
         mechanic_fn = load_mechanic_fn(code) if code else None
         result = run_single_game(
@@ -254,6 +298,7 @@ def _play_game_worker(code: str, agent1_spec: dict, agent2_spec: dict, game_clas
             agent1=_build_agent(game_class, agent1_spec),
             agent2=_build_agent(game_class, agent2_spec),
             game_class=game_class,
+            starting_player=starting_player,
         )
         result_queue.put(result)
     except Exception:
@@ -270,13 +315,13 @@ def _play_game_worker(code: str, agent1_spec: dict, agent2_spec: dict, game_clas
         })
 
 
-def _run_game_safe(code: str, agent1_spec: dict, agent2_spec: dict, game_class=None) -> dict:
+def _run_game_safe(code: str, agent1_spec: dict, agent2_spec: dict, game_class=None, starting_player=None) -> dict:
     game_class = game_class or BaseGame
     ctx = mp.get_context("spawn")
     result_queue = ctx.Queue()
     process = ctx.Process(
         target=_play_game_worker,
-        args=(code, agent1_spec, agent2_spec, game_class, result_queue),
+        args=(code, agent1_spec, agent2_spec, game_class, result_queue, starting_player),
     )
     process.start()
     process.join(GAME_TIMEOUT)
@@ -320,6 +365,8 @@ def dry_run_integration(code: str, game_class=None) -> tuple:
 
 def _collect_balance_metrics(code: str = "", game_class=None) -> dict:
     game_class = game_class or BaseGame
+    config = _metric_config(game_class)
+    alternate_starting_player = issubclass(game_class, CardGame)
     completed = 0
     p1_wins = 0
     p2_wins = 0
@@ -331,10 +378,10 @@ def _collect_balance_metrics(code: str = "", game_class=None) -> dict:
     trigger_count = 0
     triggered_matches = 0
     state_changed = 0
-    total_matches = N_GAMES_BALANCE
+    total_matches = config["n_balance"]
 
-    low_spec_a = {"kind": "mcts", "simulations": BALANCE_MCTS_SIMS}
-    low_spec_b = {"kind": "mcts", "simulations": BALANCE_MCTS_SIMS}
+    low_spec_a = {"kind": "mcts", "simulations": config["balance_sims"]}
+    low_spec_b = {"kind": "mcts", "simulations": config["balance_sims"]}
 
     for game_index in range(total_matches):
         # We alternate the seat assignment explicitly even though both agents use
@@ -342,7 +389,14 @@ def _collect_balance_metrics(code: str = "", game_class=None) -> dict:
         # easy to explain in reports/slides.
         agent1_spec = low_spec_a if game_index % 2 == 0 else low_spec_b
         agent2_spec = low_spec_b if game_index % 2 == 0 else low_spec_a
-        result = _run_game_safe(code, agent1_spec, agent2_spec, game_class=game_class)
+        starting_player = (PLAYER_1 if game_index % 2 == 0 else PLAYER_2) if alternate_starting_player else PLAYER_1
+        result = _run_game_safe(
+            code,
+            agent1_spec,
+            agent2_spec,
+            game_class=game_class,
+            starting_player=starting_player,
+        )
         total_turns += result["turns"]
         multi_choice_turns += result["multi_choice_turns"]
         covered_total += result["covered_cells"]
@@ -397,18 +451,28 @@ def _collect_balance_metrics(code: str = "", game_class=None) -> dict:
 
 def _collect_depth_metrics(code: str = "", game_class=None) -> dict:
     game_class = game_class or BaseGame
+    config = _metric_config(game_class)
+    alternate_starting_player = issubclass(game_class, CardGame)
     strong_wins = 0
     weak_wins = 0
     completed = 0
 
-    strong_spec = {"kind": "mcts", "simulations": DEPTH_STRONG_SIMS}
-    weak_spec = {"kind": "mcts", "simulations": DEPTH_WEAK_SIMS}
+    n_matches = config["n_depth"]
+    strong_spec = {"kind": "mcts", "simulations": config["depth_strong_sims"]}
+    weak_spec = {"kind": "mcts", "simulations": config["depth_weak_sims"]}
 
-    for game_index in range(N_GAMES_DEPTH):
+    for game_index in range(n_matches):
         strong_as_p1 = (game_index % 2 == 0)
+        starting_player = (PLAYER_1 if strong_as_p1 else PLAYER_2) if alternate_starting_player else PLAYER_1
         agent1_spec = strong_spec if strong_as_p1 else weak_spec
         agent2_spec = weak_spec if strong_as_p1 else strong_spec
-        result = _run_game_safe(code, agent1_spec, agent2_spec, game_class=game_class)
+        result = _run_game_safe(
+            code,
+            agent1_spec,
+            agent2_spec,
+            game_class=game_class,
+            starting_player=starting_player,
+        )
         if result["completed"]:
             completed += 1
             if strong_as_p1 and result["winner"] == PLAYER_1:
@@ -423,7 +487,7 @@ def _collect_depth_metrics(code: str = "", game_class=None) -> dict:
     depth = strong_rate - weak_rate
 
     return {
-        "strong_vs_weak_matches": N_GAMES_DEPTH,
+        "strong_vs_weak_matches": n_matches,
         "strong_agent_wins": strong_wins,
         "weak_agent_wins": weak_wins,
         "strong_agent_win_rate": round(strong_rate, 3),

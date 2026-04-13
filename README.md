@@ -9,9 +9,12 @@ Current `Prototype/` capabilities:
 - Multi-game pipeline with `board` and `card` modes
 - MCTS-based playtesting for both game modes
 - Cross-platform subprocess-based playtest execution for Windows and macOS
+- FastAPI dashboard under `Prototype/web/`
 - Runtime self-verification JSON reports under `Prototype/runtime_reports/`
 - Sample board experiment write-up in `Prototype/board_experiment_record_and_report.md`
 - Sample card experiment write-up in `Prototype/card_experiment_record_and_report.md`
+- Latest combined board/card experiment report in `Prototype/latest_combined_experiment_report.md`
+- Card metric review in `Prototype/card_metric_review.md`
 
 Useful entry points:
 
@@ -20,7 +23,15 @@ python Prototype/main.py --game board
 python Prototype/main.py --game card
 python Prototype/demo_main.py --game board
 python Prototype/demo_main.py --game card
+cd Prototype && python -m uvicorn web.app:app --reload --port 8000
 ```
+
+Current Week 3 status:
+
+- End-to-end pipeline is integrated for both game modes
+- Dashboard is connected to the active playtest pipeline
+- Only accepted, non-duplicate mechanics are registered into the active library
+- Dashboard library view is now driven by the accepted library files, not a separate dashboard-only source
 
 ## Overview
 
