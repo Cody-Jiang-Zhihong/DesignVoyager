@@ -45,6 +45,7 @@ const replaySpeed   = document.getElementById('replay-speed');
 
 let ws = null;
 let running = false;
+let activeModelName = 'Model';
 
 function connect() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -147,6 +148,7 @@ function handleEvent(type, data) {
 // ── Render functions ────────────────────────────────────────────────────────
 
 function renderWelcome(d) {
+    activeModelName = d.model_name || activeModelName;
     const html = `
         <div class="welcome-banner">
             <h2>DesignVoyager</h2>
@@ -187,7 +189,7 @@ function renderProposeStart(d) {
     const html = `
         <div class="status-line" id="propose-spinner">
             <span class="spinner"></span>
-            Gemini is designing a new mechanic (using ${d.context_count} as context)...
+            ${activeModelName} is designing a new mechanic (using ${d.context_count} as context)...
         </div>`;
     logContent.insertAdjacentHTML('beforeend', html);
 }
@@ -268,7 +270,7 @@ function renderVerifyResult(d) {
         detail = agg;
     } else if (decision === 'revise') {
         title = '&rarr; REVISING';
-        detail = 'Sending feedback to Gemini for one revision attempt...';
+        detail = `Sending feedback to ${activeModelName} for one revision attempt...`;
     } else {
         title = '&#10007; DISCARDED';
         detail = d.feedback || 'Could not produce a working mechanic.';
@@ -285,7 +287,7 @@ function renderRevisionStart(d) {
     logContent.insertAdjacentHTML('beforeend', `
         <div class="status-line" id="revision-spinner">
             <span class="spinner"></span>
-            Gemini is revising <strong>${d.mechanic_name}</strong>...
+            ${activeModelName} is revising <strong>${d.mechanic_name}</strong>...
         </div>`);
 }
 
@@ -313,7 +315,7 @@ function renderRevisionResult(d) {
 function renderCurriculumAdvance(d) {
     logContent.insertAdjacentHTML('beforeend', `
         <div class="curriculum-advance">
-            &#9733; Unlocked ${d.new_stage_name}! Gemini will now propose more complex mechanics.
+            &#9733; Unlocked ${d.new_stage_name}! ${activeModelName} will now propose more complex mechanics.
         </div>`);
 }
 

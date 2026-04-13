@@ -21,6 +21,7 @@ from curriculum import Curriculum
 import discarded_library
 from mechanic_library import MechanicLibrary
 from playtest_module import get_last_runtime_report, playtest, run_single_game_recorded
+from proposal_module import MODEL
 from proposal_module import propose_mechanic
 from verification_module import ACCEPT, DISCARD, REVISE, verify
 
@@ -95,6 +96,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
     emitter.emit("welcome", {
         "game_name": game_name,
         "game_class": game_class.__name__,
+        "model_name": MODEL,
         "iterations": n_iterations,
         "top_k": top_k,
         "library_size": library.size(),
