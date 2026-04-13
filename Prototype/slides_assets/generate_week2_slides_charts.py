@@ -91,6 +91,19 @@ CARD_DATA = [
     },
 ]
 
+CARD_BASELINE_BEFORE_AFTER = {
+    "before": {
+        "label": "Before\n(old baseline)",
+        "balance_gap": 0.500,
+        "depth": -0.083,
+    },
+    "after": {
+        "label": "After\n(calibrated baseline)",
+        "balance_gap": 0.188,
+        "depth": 0.688,
+    },
+}
+
 
 def _base_style():
     plt.rcParams.update(
@@ -231,11 +244,59 @@ def make_comparison_chart():
     plt.close(fig)
 
 
+def make_card_before_after_chart():
+    _base_style()
+    labels = [
+        CARD_BASELINE_BEFORE_AFTER["before"]["label"],
+        CARD_BASELINE_BEFORE_AFTER["after"]["label"],
+    ]
+    balance = [
+        CARD_BASELINE_BEFORE_AFTER["before"]["balance_gap"],
+        CARD_BASELINE_BEFORE_AFTER["after"]["balance_gap"],
+    ]
+    depth = [
+        CARD_BASELINE_BEFORE_AFTER["before"]["depth"],
+        CARD_BASELINE_BEFORE_AFTER["after"]["depth"],
+    ]
+    x = np.arange(len(labels))
+    width = 0.34
+
+    fig, ax = plt.subplots(figsize=(12, 7), dpi=160)
+    bars1 = ax.bar(x - width / 2, balance, width, label="Balance Gap", color="#e76f51")
+    bars2 = ax.bar(x + width / 2, depth, width, label="Depth", color="#2a9d8f")
+
+    ax.set_title("Card Baseline Metrics: Before vs After Calibration")
+    ax.set_ylabel("Metric Value")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_ylim(-0.25, 0.95)
+    ax.axhline(0, color="#5c5c5c", linewidth=1)
+    ax.grid(axis="y", linestyle="--", alpha=0.3)
+    ax.legend(frameon=False, ncol=2, loc="upper right")
+    _annotate_bars(ax, bars1)
+    _annotate_bars(ax, bars2)
+
+    ax.text(
+        0.03,
+        0.92,
+        "Target direction:\nlower balance gap,\nhigher depth",
+        transform=ax.transAxes,
+        fontsize=11,
+        ha="left",
+        va="top",
+    )
+
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "slide4_card_metric_before_after.png", bbox_inches="tight")
+    plt.close(fig)
+
+
 def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     make_board_chart()
     make_card_chart()
     make_comparison_chart()
+    make_card_before_after_chart()
     print(f"Generated charts in {OUT_DIR}")
 
 
