@@ -21,12 +21,13 @@ from mechanic_library import MechanicLibrary
 from playtest_module import dry_run_integration, get_last_runtime_report, playtest
 from proposal_module import propose_mechanic
 from verification_module import ACCEPT, DISCARD, REVISE, verify
+import discarded_library
 
 load_dotenv()
 
 GAME_REGISTRY = {
-    "board": (BaseGame, "library.json"),
-    "card": (CardGame, "library_card.json"),
+    "board": (BaseGame, "library.json", "discarded_board.json"),
+    "card": (CardGame, "library_card.json", "discarded_card.json"),
 }
 
 DEFAULT_ITERATIONS = 1
@@ -40,7 +41,7 @@ _last_runtime_report: dict = {}
 
 def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
              game_name: str = DEFAULT_GAME, user_prompt: str = DEFAULT_USER_PROMPT):
-    game_class, library_file = GAME_REGISTRY[game_name]
+    game_class, library_file, discarded_file = GAME_REGISTRY[game_name]
     game_template = game_class.create()
     game_skeleton = game_template.get_skeleton_description()
     state_desc = game_template.get_state_description()
@@ -48,6 +49,8 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
 
     library = MechanicLibrary(filepath=library_file)
     curriculum = Curriculum()
+    banned_names = discarded_library.load(discarded_file)
+    tried_this_run = set()
 
     print("\n" + "=" * 60)
     print("  DesignVoyager - Autonomous Game Mechanic Designer")
@@ -59,6 +62,7 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
         print(f"  User Prompt: {user_prompt[:50]}..." if len(user_prompt) > 50 else f"  User Prompt: {user_prompt}")
     print(f"  Library    : {library.summary()}")
     print(f"  Curriculum : {curriculum.progress_str()}")
+    print(f"  Banned     : {len(banned_names)} previously discarded mechanics")
     print("=" * 60 + "\n")
 
     accepted_count = 0
@@ -79,12 +83,14 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
             stage_prompt=curriculum.stage_prompt(),
             user_prompt=user_prompt,
             state_description=state_desc,
+            banned_names=list(set(banned_names) | tried_this_run),
         )
         if mechanic is None:
             print("[Loop] Proposal failed - skipping this iteration.\n")
             curriculum.on_discard()
             discarded_count += 1
             continue
+        tried_this_run.add(mechanic.get("mechanic_name", ""))
 
         outcome = _compile_playtest_verify(
             mechanic,
@@ -105,12 +111,16 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
                 curriculum.stage_prompt(),
                 user_prompt,
                 state_description=state_desc,
+                banned_names=list(set(banned_names) | tried_this_run),
             )
             if revised_mechanic is None:
                 print("[Loop] Revision failed - discarding.\n")
+                discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
+                banned_names.append(mechanic.get("mechanic_name", ""))
                 curriculum.on_discard()
                 discarded_count += 1
                 continue
+            tried_this_run.add(revised_mechanic.get("mechanic_name", ""))
             outcome = _compile_playtest_verify(
                 revised_mechanic,
                 already_revised=True,
@@ -131,6 +141,8 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
             if advanced:
                 print(f"[Curriculum] advanced to {curriculum.stage_name()}.")
         else:
+            discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
+            banned_names.append(mechanic.get("mechanic_name", ""))
             curriculum.on_discard()
             discarded_count += 1
             print("[Loop] discarded after revision.")
@@ -297,7 +309,8 @@ def _save_runtime_report(report: dict, game_name: str, mechanic_name: str, itera
 
 
 def _revise(original_mechanic: dict, game_skeleton: str, retrieved: list,
-            stage_prompt: str = "", user_prompt: str = "", state_description: str = None):
+            stage_prompt: str = "", user_prompt: str = "", state_description: str = None,
+            banned_names: list = None):
     feedback = original_mechanic.get("_revision_feedback", "Please improve this mechanic.")
     name = original_mechanic.get("mechanic_name", "unknown")
 
@@ -320,6 +333,8 @@ def _revise(original_mechanic: dict, game_skeleton: str, retrieved: list,
         stage_prompt=stage_prompt,
         user_prompt=user_prompt,
         state_description=state_description,
+        banned_names=banned_names,
+        is_revision=True,
     )
 
 

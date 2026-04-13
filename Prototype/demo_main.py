@@ -24,14 +24,15 @@ from mechanic_library import MechanicLibrary
 from playtest_module import playtest
 from proposal_module import propose_mechanic
 from verification_module import ACCEPT, DISCARD, REVISE, MIN_PLAYABILITY, verify
+import discarded_library
 
 load_dotenv()
 
 console = Console()
 
 GAME_REGISTRY = {
-    "board": (BaseGame, "library.json"),
-    "card": (CardGame, "library_card.json"),
+    "board": (BaseGame, "library.json", "discarded_board.json"),
+    "card": (CardGame, "library_card.json", "discarded_card.json"),
 }
 
 
@@ -108,7 +109,7 @@ def _compile_playtest_verify(mechanic: dict, already_revised: bool, game_class=N
 
 
 def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", user_prompt: str = ""):
-    game_class, library_file = GAME_REGISTRY[game_name]
+    game_class, library_file, discarded_file = GAME_REGISTRY[game_name]
     game_template = game_class.create()
     skeleton = game_template.get_skeleton_description()
     state_desc = game_template.get_state_description()
@@ -117,6 +118,8 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
     with suppress():
         library = MechanicLibrary(filepath=library_file)
     curriculum = Curriculum()
+    banned_names = discarded_library.load(discarded_file)
+    tried_this_run = set()
 
     console.print()
     console.print(Panel(
@@ -125,7 +128,8 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
         f"Iterations  [bold white]{n_iterations}[/bold white]     "
         f"Context k  [bold white]{top_k}[/bold white]\n"
         f"  Library  [bold cyan]{library.size()} mechanics[/bold cyan]\n"
-        f"  Curriculum  [yellow]{curriculum.progress_str()}[/yellow]",
+        f"  Curriculum  [yellow]{curriculum.progress_str()}[/yellow]\n"
+        f"  Banned  [dim]{len(banned_names)} previously discarded mechanics[/dim]",
         border_style="cyan",
         padding=(1, 4),
     ))
@@ -156,6 +160,7 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
                     stage_prompt=curriculum.stage_prompt(),
                     user_prompt=user_prompt,
                     state_description=state_desc,
+                    banned_names=list(set(banned_names) | tried_this_run),
                 )
 
         if mechanic is None:
@@ -163,6 +168,7 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
             curriculum.on_discard()
             discarded_count += 1
             continue
+        tried_this_run.add(mechanic.get("mechanic_name", ""))
 
         console.print(
             f"\n  [cyan bold]Proposed:[/cyan bold] [bold white]{mechanic['mechanic_name']}[/bold white] "
@@ -201,15 +207,20 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
                         stage_prompt=curriculum.stage_prompt(),
                         user_prompt=user_prompt,
                         state_description=state_desc,
+                        banned_names=list(set(banned_names) | tried_this_run),
+                        is_revision=True,
                     )
 
             if revised is None:
                 print_verdict(DISCARD, mechanic["mechanic_name"])
+                discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
+                banned_names.append(mechanic.get("mechanic_name", ""))
                 curriculum.on_discard()
                 discarded_count += 1
                 continue
 
             mechanic = revised
+            tried_this_run.add(mechanic.get("mechanic_name", ""))
             console.print(f"\n  [yellow bold]Revised:[/yellow bold] [bold white]{mechanic['mechanic_name']}[/bold white]\n")
             decision, scores = _compile_playtest_verify(
                 mechanic,
@@ -234,6 +245,8 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
                     border_style="yellow",
                 ))
         else:
+            discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
+            banned_names.append(mechanic.get("mechanic_name", ""))
             curriculum.on_discard()
             discarded_count += 1
 

@@ -44,6 +44,8 @@ class CardGame(GameInterface):
             "  - 'current_player' : integer (1 or 2)\n"
             "  - 'turn'           : integer turn count\n"
             "  - 'last_played'    : int value of the last card played, or None\n"
+            "  - 'extra_turn'     : boolean, default False. Set to True to keep the same player next turn.\n"
+            "  - 'custom_state'   : dict, default {}. Use this to persist mechanic-specific state.\n"
             f"Win condition: first player to reach {TARGET_SCORE} points wins."
         )
 
@@ -57,6 +59,8 @@ class CardGame(GameInterface):
             "current_player": PLAYER_1,
             "turn": 4,
             "last_played": 7,
+            "extra_turn": False,
+            "custom_state": {},
         }
 
     def possible_moves(self, state: dict) -> list:
@@ -86,6 +90,7 @@ class CardGame(GameInterface):
             self.state["scores"][player] += card
             self.state["last_played"] = card
 
+        self._state_before_mechanics = copy.deepcopy(self.state)
         for mechanic_fn in self.mechanics:
             try:
                 result = mechanic_fn(self.state)
@@ -134,7 +139,10 @@ class CardGame(GameInterface):
         return self.ai_players[self.state["current_player"]]
 
     def advance_turn(self) -> None:
-        self.state["current_player"] = PLAYER_2 if self.state["current_player"] == PLAYER_1 else PLAYER_1
+        if self.state.get("extra_turn", False):
+            self.state["extra_turn"] = False
+        else:
+            self.state["current_player"] = PLAYER_2 if self.state["current_player"] == PLAYER_1 else PLAYER_1
         self.state["turn"] += 1
 
     def get_coverage_stats(self, state: dict) -> tuple:
@@ -168,6 +176,8 @@ def _fresh_state() -> dict:
         "current_player": PLAYER_1,
         "turn": 0,
         "last_played": None,
+        "extra_turn": False,
+        "custom_state": {},
     }
 
 

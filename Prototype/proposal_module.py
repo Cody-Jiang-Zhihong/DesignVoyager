@@ -62,7 +62,8 @@ def _build_system_prompt(state_description: str = None) -> str:
 
 
 def build_proposal_prompt(game_skeleton: str, retrieved_mechanics: list,
-                          stage_prompt: str = "", user_prompt: str = "") -> str:
+                          stage_prompt: str = "", user_prompt: str = "",
+                          banned_names: list = None, is_revision: bool = False) -> str:
     mechanics_section = ""
     if retrieved_mechanics:
         mechanics_section = "\n\nHere are some previously validated mechanics for reference:\n"
@@ -74,15 +75,38 @@ def build_proposal_prompt(game_skeleton: str, retrieved_mechanics: list,
                 f"Code:\n{mech.get('python_code', '')}\n"
             )
 
+    library_names = [
+        m.get("mechanic_name", "")
+        for m in retrieved_mechanics
+        if not m.get("mechanic_name", "").endswith("(PREVIOUS ATTEMPT - FAILED)")
+    ]
+    all_banned = sorted(set(library_names) | set(banned_names or []))
+    dedup_section = ""
+    if all_banned and not is_revision:
+        names_str = ", ".join(all_banned)
+        dedup_section = (
+            "\n\nDo NOT propose a mechanic with any of these names "
+            f"(already used or previously discarded): {names_str}. "
+            "Your mechanic must have a unique name and be functionally distinct "
+            "from everything listed above."
+        )
+
     stage_section = f"\n\n{stage_prompt}" if stage_prompt else ""
     user_section = f"\n\n{user_prompt}" if user_prompt else ""
+    closing = (
+        "Fix the mechanic shown above. Keep the same core idea but correct the issue "
+        "described in the revision feedback. Respond with raw JSON only."
+        if is_revision else
+        "Propose ONE new mechanic that meaningfully extends this game. "
+        "Respond with raw JSON only."
+    )
     return (
         f"Current game:\n{game_skeleton}"
         f"{mechanics_section}"
+        f"{dedup_section}"
         f"{stage_section}"
         f"{user_section}\n\n"
-        "Propose ONE new mechanic that meaningfully extends this game. "
-        "Respond with raw JSON only."
+        f"{closing}"
     )
 
 
@@ -118,7 +142,8 @@ def parse_gpt_response(text: str) -> Optional[dict]:
 
 def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
                      stage_prompt: str = "", user_prompt: str = "",
-                     state_description: str = None) -> Optional[dict]:
+                     state_description: str = None, banned_names: list = None,
+                     is_revision: bool = False) -> Optional[dict]:
     if retrieved_mechanics is None:
         retrieved_mechanics = []
 
@@ -129,7 +154,8 @@ def propose_mechanic(game_skeleton: str, retrieved_mechanics: list = None,
         {
             "role": "user",
             "content": build_proposal_prompt(
-                game_skeleton, retrieved_mechanics, stage_prompt, user_prompt
+                game_skeleton, retrieved_mechanics, stage_prompt, user_prompt,
+                banned_names=banned_names, is_revision=is_revision
             ),
         },
     ]

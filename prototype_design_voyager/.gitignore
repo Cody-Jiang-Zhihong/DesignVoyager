@@ -1,0 +1,14 @@
+# API keys — never commit these
+.env
+
+# Mechanic libraries (generated data, optional to commit)
+library.json
+library_card.json
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# macOS
+.DS_Store

@@ -42,6 +42,10 @@ def _normalize(value):
     return value
 
 
+def serialize_state(state: dict) -> dict:
+    return _normalize(state)
+
+
 def _states_differ(before: dict, after: dict) -> bool:
     return _normalize(before) != _normalize(after)
 
@@ -157,6 +161,86 @@ def run_single_game(mechanic_fn=None, agent1=None, agent2=None, game_class=None)
                 "trigger_count": tracker["trigger_count"],
                 "state_changed_by_mechanic_count": tracker["state_changed_by_mechanic_count"],
                 "triggered": tracker["trigger_count"] > 0,
+            }
+
+        game.advance_turn()
+
+
+def run_single_game_recorded(mechanic_fn=None, game_class=None, agent1=None, agent2=None) -> dict:
+    game_class = game_class or BaseGame
+    agent1 = agent1 or MCTSAgent(simulations=DEPTH_STRONG_SIMS)
+    agent2 = agent2 or MCTSAgent(simulations=DEPTH_STRONG_SIMS)
+
+    tracker = {
+        "trigger_count": 0,
+        "state_changed_by_mechanic_count": 0,
+    }
+    wrapped_mechanic = _wrap_mechanic(mechanic_fn, tracker)
+    game = game_class.create(mechanic_fn=wrapped_mechanic, agent1=agent1, agent2=agent2)
+
+    initial_state = serialize_state(game.get_state())
+    move_log = []
+    turn_count = 0
+
+    while True:
+        if turn_count > MAX_TURNS:
+            return {
+                "winner": None,
+                "completed": False,
+                "turns": turn_count,
+                "initial_state": initial_state,
+                "moves": move_log,
+            }
+
+        state = game.get_state()
+        moves = game.possible_moves(state)
+
+        if not moves:
+            return {
+                "winner": None,
+                "completed": True,
+                "turns": turn_count,
+                "initial_state": initial_state,
+                "moves": move_log,
+            }
+
+        player = state.get("current_player")
+        agent = game.get_current_agent()
+        move = agent.choose_move(game, state, moves)
+
+        if not game.is_valid_move(move):
+            return {
+                "winner": None,
+                "completed": False,
+                "turns": turn_count,
+                "initial_state": initial_state,
+                "moves": move_log,
+            }
+
+        game.perform_move(move)
+        turn_count += 1
+
+        state_before_mechanics = None
+        if hasattr(game, "_state_before_mechanics") and game._state_before_mechanics is not None:
+            state_before_mechanics = serialize_state(game._state_before_mechanics)
+
+        move_log.append(
+            {
+                "turn": turn_count,
+                "player": player,
+                "move": move if isinstance(move, (int, float, str, bool)) else str(move),
+                "state_before_mechanics": state_before_mechanics,
+                "state_after": serialize_state(game.get_state()),
+            }
+        )
+
+        if game.game_finished():
+            return {
+                "winner": game.get_winner(),
+                "completed": True,
+                "turns": turn_count,
+                "initial_state": initial_state,
+                "moves": move_log,
             }
 
         game.advance_turn()
