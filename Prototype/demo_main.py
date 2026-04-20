@@ -119,6 +119,19 @@ def _compile_playtest_verify(mechanic: dict, already_revised: bool, game_class=N
     return decision, scores
 
 
+def _check_novelty_gate(mechanic: dict, library: MechanicLibrary, already_revised: bool) -> str | None:
+    similar_entry, similarity = library.find_most_similar(mechanic)
+    if similar_entry is None:
+        return None
+
+    mechanic["_revision_feedback"] = (
+        f"This mechanic is too similar to existing library mechanic "
+        f"'{similar_entry['mechanic_name']}' (similarity {similarity:.3f}). "
+        "Please propose a functionally distinct mechanic before playtesting."
+    )
+    return DISCARD if already_revised else REVISE
+
+
 def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", user_prompt: str = ""):
     game_class, library_file, discarded_file = GAME_REGISTRY[game_name]
     game_template = game_class.create()
@@ -181,6 +194,54 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
             continue
         tried_this_run.add(mechanic.get("mechanic_name", ""))
 
+        pre_playtest_revised = False
+        similarity_outcome = _check_novelty_gate(mechanic, library, already_revised=False)
+        if similarity_outcome == REVISE:
+            print_verdict(REVISE, mechanic["mechanic_name"])
+            console.print("  [dim]Novelty gate triggered before playtest; requesting a more distinct mechanic.[/dim]\n")
+            feedback = mechanic.get("_revision_feedback", "Please propose a more distinct mechanic.")
+            revision_ctx = retrieved + [{
+                "mechanic_name": f"{mechanic['mechanic_name']} (PREVIOUS ATTEMPT - TOO SIMILAR)",
+                "mechanic_type": mechanic.get("mechanic_type", "other"),
+                "description": mechanic.get("description", ""),
+                "python_code": mechanic.get("python_code", ""),
+            }]
+            revised_skeleton = (
+                skeleton
+                + f"\n\nNOVELTY GATE FEEDBACK for '{mechanic['mechanic_name']}':\n{feedback}\n"
+                + "Please propose a more distinct mechanic before playtesting."
+            )
+            with console.status(f"  [yellow]Revising {mechanic['mechanic_name']} before playtest...[/yellow]"):
+                with suppress():
+                    revised = propose_mechanic(
+                        revised_skeleton,
+                        revision_ctx,
+                        stage_prompt=curriculum.stage_prompt(),
+                        user_prompt=user_prompt,
+                        state_description=state_desc,
+                        banned_names=list(set(banned_names) | tried_this_run),
+                        is_revision=True,
+                    )
+            if revised is None:
+                print_verdict(DISCARD, mechanic["mechanic_name"])
+                discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
+                banned_names.append(mechanic.get("mechanic_name", ""))
+                curriculum.on_discard()
+                discarded_count += 1
+                continue
+
+            tried_this_run.add(revised.get("mechanic_name", ""))
+            if _check_novelty_gate(revised, library, already_revised=True) == DISCARD:
+                print_verdict(DISCARD, revised["mechanic_name"])
+                console.print("  [dim red]Revised mechanic still duplicates the accepted library, so playtest was skipped.[/dim red]\n")
+                discarded_library.save_name(revised.get("mechanic_name", ""), discarded_file)
+                banned_names.append(revised.get("mechanic_name", ""))
+                curriculum.on_discard()
+                discarded_count += 1
+                continue
+            mechanic = revised
+            pre_playtest_revised = True
+
         console.print(
             f"\n  [cyan bold]Proposed:[/cyan bold] [bold white]{mechanic['mechanic_name']}[/bold white] "
             f"[dim]({mechanic.get('mechanic_type', '')})[/dim]\n"
@@ -189,7 +250,7 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
 
         decision, scores = _compile_playtest_verify(
             mechanic,
-            already_revised=False,
+            already_revised=pre_playtest_revised,
             game_class=game_class,
             dummy_state=dummy_state,
         )

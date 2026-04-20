@@ -160,8 +160,78 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
             "python_code": mechanic.get("python_code", ""),
         })
 
+        pre_playtest_revised = False
+        similarity_outcome = _check_novelty_gate(mechanic, library, already_revised=False)
+        if similarity_outcome == REVISE:
+            emitter.emit("verify_result", {
+                "decision": REVISE,
+                "feedback": mechanic.get("_revision_feedback", ""),
+                "scores": {},
+            })
+
+            feedback = mechanic.get("_revision_feedback", "Please propose a more distinct mechanic.")
+            revision_ctx = retrieved + [{
+                "mechanic_name": f"{mechanic['mechanic_name']} (PREVIOUS ATTEMPT - TOO SIMILAR)",
+                "mechanic_type": mechanic.get("mechanic_type", "other"),
+                "description": mechanic.get("description", ""),
+                "python_code": mechanic.get("python_code", ""),
+            }]
+            revised_skeleton = (
+                skeleton
+                + f"\n\nNOVELTY GATE FEEDBACK for '{mechanic['mechanic_name']}':\n{feedback}\n"
+                + "Please propose a more distinct mechanic before playtesting."
+            )
+
+            emitter.emit("revision_start", {
+                "mechanic_name": mechanic.get("mechanic_name", "unknown"),
+            })
+            with _suppress_stdout():
+                revised = propose_mechanic(
+                    revised_skeleton,
+                    revision_ctx,
+                    stage_prompt=curriculum.stage_prompt(),
+                    user_prompt=user_prompt,
+                    state_description=state_desc,
+                    banned_names=all_banned,
+                    is_revision=True,
+                )
+
+            if revised is None:
+                emitter.emit("revision_result", {"failed": True})
+                emitter.emit("verify_result", {
+                    "decision": DISCARD,
+                    "feedback": "Revision failed.",
+                })
+                discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
+                banned_names.append(mechanic.get("mechanic_name", ""))
+                curriculum.on_discard()
+                discarded_count += 1
+                continue
+
+            tried_this_run.add(revised.get("mechanic_name", ""))
+            emitter.emit("revision_result", {
+                "failed": False,
+                "mechanic_name": revised.get("mechanic_name", "unknown"),
+                "mechanic_type": revised.get("mechanic_type", ""),
+                "description": revised.get("description", ""),
+                "python_code": revised.get("python_code", ""),
+            })
+            if _check_novelty_gate(revised, library, already_revised=True) == DISCARD:
+                emitter.emit("verify_result", {
+                    "decision": DISCARD,
+                    "feedback": revised.get("_revision_feedback", ""),
+                    "scores": {},
+                })
+                discarded_library.save_name(revised.get("mechanic_name", ""), discarded_file)
+                banned_names.append(revised.get("mechanic_name", ""))
+                curriculum.on_discard()
+                discarded_count += 1
+                continue
+            mechanic = revised
+            pre_playtest_revised = True
+
         decision, scores, replay_data = _compile_playtest_verify(
-            emitter, mechanic, already_revised=False,
+            emitter, mechanic, already_revised=pre_playtest_revised,
             game_class=game_class, game_name=game_name,
             dummy_state=dummy_state,
         )
@@ -325,6 +395,19 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
     if decision == REVISE:
         mechanic["_revision_feedback"] = feedback
     return decision, scores, replay_data
+
+
+def _check_novelty_gate(mechanic: dict, library: MechanicLibrary, already_revised: bool) -> str | None:
+    similar_entry, similarity = library.find_most_similar(mechanic)
+    if similar_entry is None:
+        return None
+
+    mechanic["_revision_feedback"] = (
+        f"This mechanic is too similar to accepted library mechanic "
+        f"'{similar_entry['mechanic_name']}' (similarity {similarity:.3f}). "
+        "Please propose a functionally distinct mechanic before playtesting."
+    )
+    return DISCARD if already_revised else REVISE
 
 
 def _record_best_replay(mechanic_fn, game_class):

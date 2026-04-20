@@ -102,9 +102,42 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
             continue
         tried_this_run.add(mechanic.get("mechanic_name", ""))
 
+        pre_playtest_revised = False
+        similarity_outcome = _check_novelty_gate(mechanic, library, already_revised=False)
+        if similarity_outcome == REVISE:
+            print("[Loop] Proposed mechanic is too similar to the existing library - revising before playtest.\n")
+            revised_mechanic = _revise(
+                mechanic,
+                game_skeleton,
+                retrieved,
+                curriculum.stage_prompt(),
+                user_prompt,
+                state_description=state_desc,
+                banned_names=list(set(banned_names) | tried_this_run),
+            )
+            if revised_mechanic is None:
+                print("[Loop] Revision failed - discarding.\n")
+                discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
+                banned_names.append(mechanic.get("mechanic_name", ""))
+                curriculum.on_discard()
+                discarded_count += 1
+                continue
+            tried_this_run.add(revised_mechanic.get("mechanic_name", ""))
+
+            similarity_outcome = _check_novelty_gate(revised_mechanic, library, already_revised=True)
+            if similarity_outcome == DISCARD:
+                discarded_library.save_name(revised_mechanic.get("mechanic_name", ""), discarded_file)
+                banned_names.append(revised_mechanic.get("mechanic_name", ""))
+                curriculum.on_discard()
+                discarded_count += 1
+                print("[Loop] discarded before playtest because the revised mechanic still duplicates the library.")
+                continue
+            mechanic = revised_mechanic
+            pre_playtest_revised = True
+
         outcome = _compile_playtest_verify(
             mechanic,
-            already_revised=False,
+            already_revised=pre_playtest_revised,
             game_class=game_class,
             dummy_state=dummy_state,
             game_name=game_name,
@@ -206,6 +239,20 @@ def _compile_playtest_verify(mechanic: dict, already_revised: bool,
     if decision == REVISE:
         mechanic["_revision_feedback"] = feedback
     return decision
+
+
+def _check_novelty_gate(mechanic: dict, library: MechanicLibrary, already_revised: bool) -> str | None:
+    similar_entry, similarity = library.find_most_similar(mechanic)
+    if similar_entry is None:
+        return None
+
+    feedback = (
+        f"This mechanic is too similar to existing library mechanic "
+        f"'{similar_entry['mechanic_name']}' (similarity {similarity:.3f}). "
+        "Please propose a functionally distinct mechanic before running playtests."
+    )
+    mechanic["_revision_feedback"] = feedback
+    return DISCARD if already_revised else REVISE
 
 
 def _get_scores() -> dict:

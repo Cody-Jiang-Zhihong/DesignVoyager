@@ -136,15 +136,15 @@ class MechanicLibrary:
         """
         mechanic_name = mechanic.get("mechanic_name", "unknown")
         new_embedding = _embed(_mechanic_text(mechanic))
-        
-        # Check similarity with existing mechanics
-        for existing in self.mechanics:
-            existing_embedding = existing.get("embedding", [])
-            similarity = _cosine(new_embedding, existing_embedding)
-            if similarity >= SIMILARITY_THRESHOLD:
-                print(f"[Library] Rejected mechanic '{mechanic_name}': "
-                        f"too similar to '{existing['mechanic_name']}' (similarity: {similarity:.3f})")
-                return False
+        similar_entry, similarity = self.find_most_similar(
+            mechanic,
+            embedding=new_embedding,
+            threshold=SIMILARITY_THRESHOLD,
+        )
+        if similar_entry is not None:
+            print(f"[Library] Rejected mechanic '{mechanic_name}': "
+                  f"too similar to '{similar_entry['mechanic_name']}' (similarity: {similarity:.3f})")
+            return False
         
         entry = {
             "mechanic_name": mechanic_name,
@@ -161,6 +161,34 @@ class MechanicLibrary:
         print(f"[Library] Added mechanic '{entry['mechanic_name']}' "
               f"(library size: {len(self.mechanics)})")
         return True
+
+    def find_most_similar(self, mechanic: dict, embedding: list = None,
+                          threshold: float = None) -> tuple:
+        """
+        Return the most similar existing library mechanic and its cosine similarity.
+
+        If `threshold` is provided, only return a match when the best similarity
+        meets or exceeds that threshold. Otherwise returns the best match even if
+        the similarity is low.
+        """
+        if not self.mechanics:
+            return None, 0.0
+
+        threshold = SIMILARITY_THRESHOLD if threshold is None else threshold
+        embedding = embedding if embedding is not None else _embed(_mechanic_text(mechanic))
+
+        best_entry = None
+        best_similarity = -1.0
+        for existing in self.mechanics:
+            existing_embedding = existing.get("embedding", [])
+            similarity = _cosine(embedding, existing_embedding)
+            if similarity > best_similarity:
+                best_entry = existing
+                best_similarity = similarity
+
+        if best_entry is None or best_similarity < threshold:
+            return None, max(best_similarity, 0.0)
+        return best_entry, best_similarity
 
     # ── Retrieve ──────────────────────────────────────────────────────────────
 
