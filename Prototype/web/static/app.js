@@ -960,36 +960,157 @@ const tutorialPlayer = {
 // runs a per-card nano tutorial animation when a card is expanded.
 
 const libraryManager = {
-    cards:       [],    // array of card data objects (same shape as library_cards.json)
-    expandedId:  null,  // index of the currently expanded card (or null)
-    _animations: {},    // map of card-id → animation state object
+    cards: [],
+    expandedId: null,
+    _animations: {},
 
-    // DOM refs for the library view
-    get _emptyEl()  { return document.getElementById('library-empty'); },
-    get _gridEl()   { return document.getElementById('library-grid'); },
-
-    // ── Public API ──────────────────────────────────────────────────────────
+    get _analyticsEl() { return document.getElementById('library-analytics'); },
+    get _emptyEl() { return document.getElementById('library-empty'); },
+    get _gridEl() { return document.getElementById('library-grid'); },
 
     async init() {
         try {
             const res = await fetch('/api/library-cards');
             if (!res.ok) return;
             const cards = await res.json();
-            cards.forEach(c => this._addCard(c));
+            cards.forEach(card => this._addCard(card, false));
+            this._renderAll();
         } catch (e) { /* server may not be running yet */ }
     },
 
     addLive(card) {
-        this._addCard(card);
+        this._addCard(card, true);
     },
 
-    // ── Private helpers ─────────────────────────────────────────────────────
+    _addCard(card, rerender = true) {
+        this.cards.push(this._enrichCard(card));
+        this.cards.sort((a, b) => {
+            const diff = (b.scores?.aggregate ?? 0) - (a.scores?.aggregate ?? 0);
+            return diff !== 0 ? diff : (a.mechanic_name || '').localeCompare(b.mechanic_name || '');
+        });
+        if (rerender) this._renderAll();
+    },
 
-    _addCard(card) {
-        const id = this.cards.length;
-        this.cards.push(card);
+    _renderAll() {
+        this._stopAllAnimations();
+        this.expandedId = null;
+        this._gridEl.innerHTML = '';
+
+        if (this.cards.length === 0) {
+            this._emptyEl.classList.remove('hidden');
+            this._analyticsEl.innerHTML = '';
+            return;
+        }
+
         this._emptyEl.classList.add('hidden');
-        this._renderCard(id, card);
+        this._renderAnalytics();
+        this.cards.forEach((card, index) => this._renderCard(index, card));
+    },
+
+    _renderAnalytics() {
+        const analytics = this._buildAnalytics();
+        const familyCards = analytics.familyStats.map(stat => `
+            <div class="family-row-card">
+                <div class="family-row-top">
+                    <div class="family-row-title">
+                        <span class="family-icon">${familyIcon(stat.label)}</span>
+                        <span>${escapeHtml(stat.label)}</span>
+                    </div>
+                    <div class="family-row-count">${stat.count}</div>
+                </div>
+                <div class="family-row-bars">
+                    ${miniMetricBar('B', stat.avgBalance, 'green')}
+                    ${miniMetricBar('D', stat.avgDepth, 'blue')}
+                    ${miniMetricBar('A', stat.avgAggregate, 'purple')}
+                </div>
+            </div>
+        `).join('');
+
+        const patternCards = analytics.patternStats.map(stat => `
+            <div class="pattern-chip">
+                <span class="pattern-icon">${patternIcon(stat.label)}</span>
+                <span>${escapeHtml(stat.label)}</span>
+                <span class="pattern-chip-meta">${stat.count}</span>
+            </div>
+        `).join('');
+
+        const bestCards = analytics.bestOverall.map(card => `
+            <div class="analytics-best-row">
+                <div>
+                    <div class="analytics-best-name">${escapeHtml(card.mechanic_name)}</div>
+                    <div class="analytics-best-sub">${escapeHtml(card.meta.effectFamily)}</div>
+                </div>
+                <span class="analytics-best-meta">${card.scores.aggregate.toFixed(2)}</span>
+            </div>
+        `).join('');
+
+        const insightChips = analytics.insights.map(insight => `
+            <div class="insight-chip">
+                <span class="insight-icon">${insight.icon}</span>
+                <span class="insight-text">${escapeHtml(insight.text)}</span>
+            </div>
+        `).join('');
+
+        this._analyticsEl.innerHTML = `
+            <section class="library-analytics-panel">
+                <div class="analytics-overview-grid">
+                    <div class="analytics-stat-card">
+                        <div class="analytics-stat-icon">◎</div>
+                        <div class="analytics-stat-label">Accepted</div>
+                        <div class="analytics-stat-value">${analytics.overview.total}</div>
+                        <div class="analytics-stat-sub">${analytics.overview.boardCount} board · ${analytics.overview.cardCount} card</div>
+                    </div>
+                    <div class="analytics-stat-card">
+                        <div class="analytics-stat-icon">◔</div>
+                        <div class="analytics-stat-label">Avg Aggregate</div>
+                        <div class="analytics-stat-value">${analytics.overview.avgAggregate.toFixed(2)}</div>
+                        <div class="analytics-stat-sub">library mean</div>
+                    </div>
+                    <div class="analytics-stat-card">
+                        <div class="analytics-stat-icon">▲</div>
+                        <div class="analytics-stat-label">High Depth</div>
+                        <div class="analytics-stat-value">${analytics.overview.highDepthCount}</div>
+                        <div class="analytics-stat-sub">depth ≥ 0.80</div>
+                    </div>
+                    <div class="analytics-stat-card">
+                        <div class="analytics-stat-icon">◌</div>
+                        <div class="analytics-stat-label">Most Fair</div>
+                        <div class="analytics-stat-value small">${escapeHtml(analytics.overview.mostFairFamily)}</div>
+                        <div class="analytics-stat-sub">best balance family</div>
+                    </div>
+                </div>
+
+                <div class="analytics-sections">
+                    <section class="analytics-section">
+                        <div class="analytics-section-header">
+                            <h3>Top Families</h3>
+                            <span>B / D / A</span>
+                        </div>
+                        <div class="analytics-type-grid">${familyCards}</div>
+                    </section>
+
+                    <section class="analytics-section analytics-side-section">
+                        <div class="analytics-section-header">
+                            <h3>Top Mechanics</h3>
+                            <span>aggregate rank</span>
+                        </div>
+                        <div class="analytics-best-list">${bestCards}</div>
+                        <div class="analytics-section-header secondary">
+                            <h3>Patterns</h3>
+                            <span>common motifs</span>
+                        </div>
+                        <div class="analytics-mini-grid">${patternCards}</div>
+                    </section>
+                </div>
+
+                <section class="analytics-section">
+                    <div class="analytics-section-header">
+                        <h3>Quick Read</h3>
+                        <span>at a glance</span>
+                    </div>
+                    <div class="analytics-insight-grid">${insightChips}</div>
+                </section>
+            </section>`;
     },
 
     _renderCard(id, card) {
@@ -999,16 +1120,36 @@ const libraryManager = {
 
         el.innerHTML = `
             <div class="lib-card-header">
-                <span class="lib-card-name">${escapeHtml(card.mechanic_name || '')}</span>
+                <div class="lib-card-header-main">
+                    <span class="lib-card-name">${escapeHtml(card.mechanic_name || '')}</span>
+                    <div class="lib-card-subtitle">
+                        <span class="lib-badge game">${escapeHtml(card.game_type || '')}</span>
+                        <span class="lib-card-summary">${escapeHtml(card.meta.effectFamily)}</span>
+                    </div>
+                    <div class="lib-card-badges">
+                        <span class="lib-badge quality ${card.meta.qualityClass}">${escapeHtml(card.meta.qualityLabel)}</span>
+                        <span class="lib-badge neutral">${escapeHtml(card.meta.designPattern)}</span>
+                    </div>
+                </div>
                 <span class="lib-card-chevron">&#9660;</span>
             </div>
             <div class="lib-card-scores">
                 ${scoreBar('Balance', 1 - (card.scores?.balance_gap ?? 1))}
-                ${scoreBar('Depth',   card.scores?.depth   ?? 0)}
+                ${scoreBar('Depth', card.scores?.depth ?? 0)}
                 <hr class="score-divider">
                 ${scoreBar('Aggregate', card.scores?.aggregate ?? 0)}
             </div>
             <div class="lib-card-expanded-content hidden">
+                <div class="lib-card-meta-grid">
+                    <div class="lib-meta-card"><span class="lib-meta-label">Timing</span><span class="lib-meta-value">${escapeHtml(card.meta.timing)}</span></div>
+                    <div class="lib-meta-card"><span class="lib-meta-label">Scope</span><span class="lib-meta-value">${escapeHtml(card.meta.interactionScope)}</span></div>
+                    <div class="lib-meta-card"><span class="lib-meta-label">Pattern</span><span class="lib-meta-value">${escapeHtml(card.meta.designPattern)}</span></div>
+                    <div class="lib-meta-card"><span class="lib-meta-label">Iteration</span><span class="lib-meta-value">${card.iteration ?? 'n/a'}</span></div>
+                </div>
+                <div class="lib-quality-line">
+                    <span class="lib-quality-title">${escapeHtml(card.meta.qualityLabel)}</span>
+                    <span class="lib-quality-copy">Balance ${formatScore(1 - (card.scores?.balance_gap ?? 1))} · Depth ${formatScore(card.scores?.depth ?? 0)} · Aggregate ${formatScore(card.scores?.aggregate ?? 0)}</span>
+                </div>
                 <div class="lib-card-desc">${escapeHtml(card.description || '')}</div>
                 <div class="lib-card-tutorial">
                     <div class="lib-phase-label phase-before">BEFORE</div>
@@ -1020,34 +1161,15 @@ const libraryManager = {
         this._gridEl.appendChild(el);
     },
 
-    _staticBoard(board, trigger) {
-        if (!board) return '<div class="lib-no-trigger">No board data</div>';
-        const placedPos = trigger ? this._parseMovePos(trigger.move) : null;
-        let html = '<div class="lib-preview-grid">';
-        for (let r = 0; r < board.length; r++) {
-            for (let c = 0; c < board[r].length; c++) {
-                const val = board[r][c];
-                const pos = `${r},${c}`;
-                let cls = 'lib-cell';
-                if (val === 'X') cls += ' x';
-                if (val === 'O') cls += ' o';
-                if (pos === placedPos) cls += ' highlight';
-                html += `<div class="${cls}">${val === '_' ? '' : escapeHtml(String(val))}</div>`;
-            }
-        }
-        html += '</div>';
-        return html;
-    },
-
     _toggleCard(id) {
         if (this.expandedId === id) {
             this._collapseCard(id);
             this.expandedId = null;
-        } else {
-            if (this.expandedId !== null) this._collapseCard(this.expandedId);
-            this._expandCard(id);
-            this.expandedId = id;
+            return;
         }
+        if (this.expandedId !== null) this._collapseCard(this.expandedId);
+        this._expandCard(id);
+        this.expandedId = id;
     },
 
     _expandCard(id) {
@@ -1066,8 +1188,6 @@ const libraryManager = {
         this._stopAnimation(id);
     },
 
-    // ── Per-card animation (same generation-counter pattern as tutorialPlayer) ──
-
     _stopAnimation(id) {
         const anim = this._animations[id];
         if (!anim) return;
@@ -1076,6 +1196,10 @@ const libraryManager = {
         const gridEl = document.querySelector(`.lib-card[data-id="${id}"] .lib-tutorial-grid`);
         if (gridEl) gridEl.classList.remove('fading');
         delete this._animations[id];
+    },
+
+    _stopAllAnimations() {
+        Object.keys(this._animations).forEach(id => this._stopAnimation(id));
     },
 
     _startAnimation(id, cardEl) {
@@ -1093,38 +1217,33 @@ const libraryManager = {
         }
 
         const trigger = detectMechanicTrigger(card.replay.moves);
-
         if (!trigger) {
             gridEl.innerHTML = '<div class="lib-no-trigger">Not triggered in this replay</div>';
             return;
         }
 
-        // Build 6x6 grid
         gridEl.innerHTML = '';
         for (let r = 0; r < 6; r++) {
             for (let c = 0; c < 6; c++) {
                 const cell = document.createElement('div');
-                cell.className   = 'lib-cell';
+                cell.className = 'lib-cell';
                 cell.dataset.pos = `${r},${c}`;
                 gridEl.appendChild(cell);
             }
         }
 
-        const anim = { generation: 0, timeout: null, phase: 'before',
-                        BEFORE_MS: 2000, AFTER_MS: 2800 };
+        const anim = { generation: 0, timeout: null, phase: 'before', BEFORE_MS: 2000, AFTER_MS: 2800 };
         this._animations[id] = anim;
 
         const renderPhase = () => {
             const board = anim.phase === 'before' ? trigger.before : trigger.after;
-
             if (anim.phase === 'before') {
                 phaseLabelEl.textContent = 'BEFORE';
-                phaseLabelEl.className   = 'lib-phase-label phase-before';
+                phaseLabelEl.className = 'lib-phase-label phase-before';
             } else {
-                const labels = { board: 'AFTER MECHANIC', extra_turn: 'EXTRA TURN',
-                                 custom_state: 'STATE UPDATED' };
+                const labels = { board: 'AFTER MECHANIC', extra_turn: 'EXTRA TURN', custom_state: 'STATE UPDATED' };
                 phaseLabelEl.textContent = labels[trigger.type] || 'AFTER MECHANIC';
-                phaseLabelEl.className   = 'lib-phase-label phase-after';
+                phaseLabelEl.className = 'lib-phase-label phase-after';
             }
 
             const cells = gridEl.querySelectorAll('.lib-cell');
@@ -1135,23 +1254,19 @@ const libraryManager = {
                     if (!cell) continue;
                     const val = board[r][c];
                     const pos = `${r},${c}`;
-
                     cell.textContent = val === '_' ? '' : val;
-                    cell.className   = 'lib-cell';
+                    cell.className = 'lib-cell';
                     if (val === 'X') cell.classList.add('x');
                     if (val === 'O') cell.classList.add('o');
-
                     if (anim.phase === 'before' && pos === this._parseMovePos(trigger.move)) {
                         cell.classList.add('highlight');
                     }
                     if (anim.phase === 'after') {
                         if (trigger.type === 'board' && trigger.changes.has(pos)) {
                             cell.classList.add('mechanic-changed');
-                        } else if (trigger.type === 'extra_turn'
-                                   && pos === this._parseMovePos(trigger.bonusMove)) {
+                        } else if (trigger.type === 'extra_turn' && pos === this._parseMovePos(trigger.bonusMove)) {
                             cell.classList.add('mechanic-changed');
-                        } else if (trigger.type === 'custom_state'
-                                   && pos === this._parseMovePos(trigger.move)) {
+                        } else if (trigger.type === 'custom_state' && pos === this._parseMovePos(trigger.move)) {
                             cell.classList.add('mechanic-changed');
                         }
                     }
@@ -1160,7 +1275,6 @@ const libraryManager = {
         };
 
         renderPhase();
-
         const schedule = (gen) => {
             if (gen !== anim.generation) return;
             const holdMs = anim.phase === 'before' ? anim.BEFORE_MS : anim.AFTER_MS;
@@ -1187,7 +1301,222 @@ const libraryManager = {
         const parts = moveStr.split(' ');
         return parts.length === 2 ? parts[1] : null;
     },
+
+    _enrichCard(card) {
+        return {
+            ...card,
+            meta: classifyMechanic(card),
+        };
+    },
+
+    _buildAnalytics() {
+        const total = this.cards.length;
+        const boardCards = this.cards.filter(card => card.game_type === 'board');
+        const cardCards = this.cards.filter(card => card.game_type === 'card');
+        const avgAggregate = average(this.cards.map(card => card.scores?.aggregate ?? 0));
+        const highDepthCount = this.cards.filter(card => (card.scores?.depth ?? 0) >= 0.8).length;
+
+        const familyStats = summarizeBy(this.cards, card => card.meta.effectFamily)
+            .map(toMetricSummary)
+            .sort((a, b) => b.avgAggregate - a.avgAggregate || b.count - a.count)
+            .slice(0, 6);
+
+        const patternStats = summarizeBy(this.cards, card => card.meta.designPattern)
+            .map(toMetricSummary)
+            .sort((a, b) => b.count - a.count || b.avgAggregate - a.avgAggregate)
+            .slice(0, 4);
+
+        const bestOverall = [...this.cards]
+            .sort((a, b) => (b.scores?.aggregate ?? 0) - (a.scores?.aggregate ?? 0))
+            .slice(0, 3);
+
+        const fairestFamily = familyStats.slice().sort((a, b) => b.avgBalance - a.avgBalance)[0];
+
+        return {
+            overview: {
+                total,
+                boardCount: boardCards.length,
+                cardCount: cardCards.length,
+                avgAggregate,
+                highDepthCount,
+                mostFairFamily: fairestFamily ? fairestFamily.label : 'n/a',
+            },
+            familyStats,
+            patternStats,
+            bestOverall,
+            insights: buildInsights(this.cards, familyStats, patternStats, boardCards, cardCards),
+        };
+    },
 };
+
+function classifyMechanic(card) {
+    const text = `${card.mechanic_name || ''} ${card.description || ''}`.toLowerCase();
+    const effectFamily = matchFirst(text, [
+        [['extra turn', 'lockstep', 'pause', 'tempo'], 'Tempo / Turn Control'],
+        [['capture', 'remove', 'blast', 'destroy'], 'Capture / Removal'],
+        [['flip', 'mirror'], 'Flip / Conversion'],
+        [['freeze', 'stun', 'lock'], 'Freeze / Denial'],
+        [['block', 'guard', 'shield'], 'Block / Protection'],
+        [['swap'], 'Swap / Position Shift'],
+        [['score', 'bonus', 'point'], 'Scoring Bonus'],
+        [['parity', 'threshold', 'hand', 'choice'], 'Hand / Conditional Rule'],
+        [['link', 'combo', 'synergy', 'line'], 'Combo / Synergy'],
+    ], 'Board Interaction');
+
+    const timing = matchFirst(text, [
+        [['on capture', 'capture'], 'On Capture'],
+        [['after placing', 'on placement', 'placement'], 'On Placement'],
+        [['extra turn', 'turn'], 'Turn-Based Trigger'],
+        [['if', 'when', 'threshold', 'parity'], 'Conditional Trigger'],
+    ], 'Immediate Trigger');
+
+    const interactionScope = matchFirst(text, [
+        [['adjacent', 'orthogonally adjacent'], 'Adjacent Local'],
+        [['diagonal'], 'Diagonal Local'],
+        [['line', 'row', 'column', '4-in-a-row'], 'Line / Pattern'],
+        [['hand', 'card'], 'Hand / Card State'],
+        [['center', 'corner'], 'Board Region'],
+    ], 'General State');
+
+    const designPattern = matchFirst(text, [
+        [['extra turn', 'tempo', 'lockstep', 'pause'], 'Tempo Advantage'],
+        [['score', 'bonus', 'choice'], 'Risk / Reward'],
+        [['block', 'freeze', 'shield', 'guard'], 'Counterplay'],
+        [['link', 'combo', 'synergy'], 'Synergy / Combo'],
+        [['adjacent', 'diagonal', 'line', 'corner', 'center'], 'Spatial Tension'],
+        [['threshold', 'parity', 'hand'], 'Conditional Planning'],
+    ], 'Direct Interaction');
+
+    const balance = 1 - (card.scores?.balance_gap ?? 1);
+    const depth = card.scores?.depth ?? 0;
+    const aggregate = card.scores?.aggregate ?? 0;
+
+    let qualityLabel = 'Promising';
+    let qualityClass = 'promising';
+    if (aggregate >= 0.9 && balance >= 0.85 && depth >= 0.8) {
+        qualityLabel = 'Elite';
+        qualityClass = 'elite';
+    } else if (balance >= 0.95 && depth >= 0.75) {
+        qualityLabel = 'Fair + Deep';
+        qualityClass = 'fairdeep';
+    } else if (balance >= 0.95) {
+        qualityLabel = 'Very Fair';
+        qualityClass = 'fair';
+    } else if (depth >= 0.85) {
+        qualityLabel = 'High Depth';
+        qualityClass = 'depth';
+    } else if (aggregate < 0.76) {
+        qualityLabel = 'Needs Work';
+        qualityClass = 'risky';
+    }
+
+    return {
+        effectFamily,
+        timing,
+        interactionScope,
+        designPattern,
+        qualityLabel,
+        qualityClass,
+        qualitySummary: `${qualityLabel} · balance ${balance.toFixed(2)} · depth ${depth.toFixed(2)} · agg ${aggregate.toFixed(2)}`,
+    };
+}
+
+function matchFirst(text, rules, fallback) {
+    for (const [keywords, label] of rules) {
+        if (keywords.some(keyword => text.includes(keyword))) return label;
+    }
+    return fallback;
+}
+
+function average(values) {
+    if (!values.length) return 0;
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function formatScore(value) {
+    return Number(value || 0).toFixed(2);
+}
+
+function summarizeBy(cards, keyFn) {
+    const groups = new Map();
+    cards.forEach(card => {
+        const key = keyFn(card);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(card);
+    });
+    return [...groups.entries()].map(([label, groupedCards]) => ({ label, cards: groupedCards }));
+}
+
+function toMetricSummary(group) {
+    return {
+        label: group.label,
+        count: group.cards.length,
+        avgBalance: average(group.cards.map(card => 1 - (card.scores?.balance_gap ?? 1))),
+        avgDepth: average(group.cards.map(card => card.scores?.depth ?? 0)),
+        avgAggregate: average(group.cards.map(card => card.scores?.aggregate ?? 0)),
+    };
+}
+
+function buildInsights(allCards, familyStats, patternStats, boardCards, cardCards) {
+    if (!allCards.length) return [];
+    const insights = [];
+    const topFamily = familyStats[0];
+    if (topFamily) {
+        insights.push({ icon: '★', text: `${topFamily.label} leads aggregate at ${topFamily.avgAggregate.toFixed(2)}` });
+    }
+    const riskiestFamily = familyStats.slice().sort((a, b) => a.avgBalance - b.avgBalance)[0];
+    if (riskiestFamily) {
+        insights.push({ icon: '⚠', text: `${riskiestFamily.label} is the riskiest family` });
+    }
+    const topPattern = patternStats[0];
+    if (topPattern) {
+        insights.push({ icon: '◆', text: `${topPattern.label} is the most common pattern` });
+    }
+    if (boardCards.length && cardCards.length) {
+        const boardAgg = average(boardCards.map(card => card.scores?.aggregate ?? 0));
+        const cardAgg = average(cardCards.map(card => card.scores?.aggregate ?? 0));
+        const stronger = boardAgg >= cardAgg ? 'Board' : 'Card';
+        insights.push({ icon: '◈', text: `${stronger} mechanics score better on average` });
+    }
+    const highDepth = allCards.filter(card => (card.scores?.depth ?? 0) >= 0.8).length;
+    insights.push({ icon: '▲', text: `${highDepth} mechanics qualify as high-depth` });
+    return insights.slice(0, 4);
+}
+
+function familyIcon(label) {
+    if (label.includes('Capture')) return '✦';
+    if (label.includes('Flip')) return '◇';
+    if (label.includes('Freeze')) return '❄';
+    if (label.includes('Block')) return '■';
+    if (label.includes('Swap')) return '⇄';
+    if (label.includes('Tempo')) return '⟳';
+    if (label.includes('Scoring')) return '＋';
+    if (label.includes('Hand')) return '▣';
+    if (label.includes('Combo')) return '⟡';
+    return '●';
+}
+
+function patternIcon(label) {
+    if (label.includes('Tempo')) return '⟳';
+    if (label.includes('Risk')) return '⚑';
+    if (label.includes('Counter')) return '⛨';
+    if (label.includes('Synergy')) return '⟡';
+    if (label.includes('Spatial')) return '▦';
+    if (label.includes('Conditional')) return '◇';
+    return '●';
+}
+
+function miniMetricBar(label, value, tone) {
+    return `
+        <div class="mini-metric">
+            <span class="mini-metric-label">${label}</span>
+            <div class="mini-metric-track">
+                <div class="mini-metric-fill ${tone}" style="width:${Math.max(0, Math.min(100, value * 100))}%"></div>
+            </div>
+            <span class="mini-metric-value">${value.toFixed(2)}</span>
+        </div>
+    `;
+}
 
 
 // Wire up replay buttons
