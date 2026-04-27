@@ -1008,9 +1008,16 @@ const libraryManager = {
     },
 
     _renderAnalytics() {
+        this._renderRobustnessAnalytics();
+        return;
+    },
+
+    _renderRobustnessAnalytics() {
         const analytics = this._buildAnalytics();
+        this._analyticsEl.innerHTML = buildLibraryAnalyticsHtml(analytics);
+        return;
         const familyCards = analytics.familyStats.map(stat => `
-            <div class="family-row-card">
+            <div class="family-row-card ${stat.robustRate >= 0.5 ? 'strong' : ''}">
                 <div class="family-row-top">
                     <div class="family-row-title">
                         <span class="family-icon">${familyIcon(stat.label)}</span>
@@ -1022,6 +1029,12 @@ const libraryManager = {
                     ${miniMetricBar('B', stat.avgBalance, 'green')}
                     ${miniMetricBar('D', stat.avgDepth, 'blue')}
                     ${miniMetricBar('A', stat.avgAggregate, 'purple')}
+                    ${miniMetricBar('R', stat.robustRate, 'robust')}
+                </div>
+                <div class="family-row-foot">
+                    <span>${stat.robustCount} robust</span>
+                    <span>${stat.contextCount} context</span>
+                    <span>${stat.nonRobustCount} fail</span>
                 </div>
             </div>
         `).join('');
@@ -1038,9 +1051,12 @@ const libraryManager = {
             <div class="analytics-best-row">
                 <div>
                     <div class="analytics-best-name">${escapeHtml(card.mechanic_name)}</div>
-                    <div class="analytics-best-sub">${escapeHtml(card.meta.effectFamily)}</div>
+                    <div class="analytics-best-sub">${escapeHtml(card.meta.effectFamily)} · ${escapeHtml(robustnessTitle(card.robustnessLabel))}</div>
                 </div>
-                <span class="analytics-best-meta">${card.scores.aggregate.toFixed(2)}</span>
+                <div class="analytics-best-right">
+                    <span class="robustness-pill ${robustnessClass(card.robustnessLabel)}">${escapeHtml(robustnessTitle(card.robustnessLabel))}</span>
+                    <span class="analytics-best-meta">${card.scores.aggregate.toFixed(2)}</span>
+                </div>
             </div>
         `).join('');
 
@@ -1128,6 +1144,7 @@ const libraryManager = {
                     </div>
                     <div class="lib-card-badges">
                         <span class="lib-badge quality ${card.meta.qualityClass}">${escapeHtml(card.meta.qualityLabel)}</span>
+                        <span class="robustness-pill ${robustnessClass(card.robustnessLabel)}">${escapeHtml(robustnessTitle(card.robustnessLabel))}</span>
                         <span class="lib-badge neutral">${escapeHtml(card.meta.designPattern)}</span>
                     </div>
                 </div>
@@ -1145,6 +1162,17 @@ const libraryManager = {
                     <div class="lib-meta-card"><span class="lib-meta-label">Scope</span><span class="lib-meta-value">${escapeHtml(card.meta.interactionScope)}</span></div>
                     <div class="lib-meta-card"><span class="lib-meta-label">Pattern</span><span class="lib-meta-value">${escapeHtml(card.meta.designPattern)}</span></div>
                     <div class="lib-meta-card"><span class="lib-meta-label">Iteration</span><span class="lib-meta-value">${card.iteration ?? 'n/a'}</span></div>
+                </div>
+                <div class="lib-robustness-panel">
+                    <div class="lib-robustness-head">
+                        <span class="robustness-pill ${robustnessClass(card.robustnessLabel)}">${escapeHtml(robustnessTitle(card.robustnessLabel))}</span>
+                        <span>${escapeHtml(card.robustnessSummary)}</span>
+                    </div>
+                    <div class="lib-compat-row">
+                        <span>Compatible: ${compatPills(card.compatibleGameTypes, 'ok')}</span>
+                        <span>Failed: ${compatPills(card.failedGameTypes, 'fail')}</span>
+                    </div>
+                    <div class="lib-game-result-grid">${gameResultChips(card)}</div>
                 </div>
                 <div class="lib-quality-line">
                     <span class="lib-quality-title">${escapeHtml(card.meta.qualityLabel)}</span>
@@ -1303,8 +1331,14 @@ const libraryManager = {
     },
 
     _enrichCard(card) {
+        const robustness = normalizeRobustness(card.robustness);
         return {
             ...card,
+            robustness,
+            robustnessLabel: robustness.label,
+            compatibleGameTypes: robustness.compatible_game_types,
+            failedGameTypes: robustness.failed_game_types,
+            robustnessSummary: robustnessSummary(robustness),
             meta: classifyMechanic(card),
         };
     },
@@ -1315,6 +1349,8 @@ const libraryManager = {
         const cardCards = this.cards.filter(card => card.game_type === 'card');
         const avgAggregate = average(this.cards.map(card => card.scores?.aggregate ?? 0));
         const highDepthCount = this.cards.filter(card => (card.scores?.depth ?? 0) >= 0.8).length;
+        const boardAgg = average(boardCards.map(card => card.scores?.aggregate ?? 0));
+        const cardAgg = average(cardCards.map(card => card.scores?.aggregate ?? 0));
 
         const familyStats = summarizeBy(this.cards, card => card.meta.effectFamily)
             .map(toMetricSummary)
@@ -1331,6 +1367,7 @@ const libraryManager = {
             .slice(0, 3);
 
         const fairestFamily = familyStats.slice().sort((a, b) => b.avgBalance - a.avgBalance)[0];
+        const robustnessStats = summarizeRobustness(this.cards);
 
         return {
             overview: {
@@ -1340,7 +1377,9 @@ const libraryManager = {
                 avgAggregate,
                 highDepthCount,
                 mostFairFamily: fairestFamily ? fairestFamily.label : 'n/a',
+                bestGameType: boardAgg >= cardAgg ? `Board (${boardAgg.toFixed(2)})` : `Card (${cardAgg.toFixed(2)})`,
             },
+            robustnessStats,
             familyStats,
             patternStats,
             bestOverall,
@@ -1348,6 +1387,156 @@ const libraryManager = {
         };
     },
 };
+
+function buildLibraryAnalyticsHtml(analytics) {
+    const robustnessCards = analytics.robustnessStats.map(stat => `
+        <div class="robustness-stat-card ${robustnessClass(stat.label)}">
+            <div class="robustness-stat-icon">${robustnessIcon(stat.label)}</div>
+            <div>
+                <div class="robustness-stat-label">${escapeHtml(robustnessTitle(stat.label))}</div>
+                <div class="robustness-stat-value">${stat.count}</div>
+                <div class="robustness-stat-sub">${stat.percent.toFixed(0)}% of library</div>
+            </div>
+        </div>
+    `).join('');
+
+    const robustnessBar = analytics.robustnessStats.map(stat => `
+        <div class="robustness-bar-segment ${robustnessClass(stat.label)}" style="width:${stat.percent}%"></div>
+    `).join('');
+
+    const familyCards = analytics.familyStats.map(stat => `
+        <div class="family-row-card ${stat.robustRate >= 0.5 ? 'strong' : ''}">
+            <div class="family-row-top">
+                <div class="family-row-title">
+                    <span class="family-icon">${familyIcon(stat.label)}</span>
+                    <span>${escapeHtml(stat.label)}</span>
+                </div>
+                <div class="family-row-count">${stat.count}</div>
+            </div>
+            <div class="family-row-bars">
+                ${miniMetricBar('B', stat.avgBalance, 'green')}
+                ${miniMetricBar('D', stat.avgDepth, 'blue')}
+                ${miniMetricBar('A', stat.avgAggregate, 'purple')}
+                ${miniMetricBar('R', stat.robustRate, 'robust')}
+            </div>
+            <div class="family-row-foot">
+                <span>${stat.robustCount} robust</span>
+                <span>${stat.contextCount} context</span>
+                <span>${stat.nonRobustCount} fail</span>
+            </div>
+        </div>
+    `).join('');
+
+    const bestCards = analytics.bestOverall.map(card => `
+        <div class="analytics-best-row">
+            <div>
+                <div class="analytics-best-name">${escapeHtml(card.mechanic_name)}</div>
+                <div class="analytics-best-sub">${escapeHtml(card.meta.effectFamily)} · ${escapeHtml(robustnessTitle(card.robustnessLabel))}</div>
+            </div>
+            <div class="analytics-best-right">
+                <span class="robustness-pill ${robustnessClass(card.robustnessLabel)}">${escapeHtml(robustnessTitle(card.robustnessLabel))}</span>
+                <span class="analytics-best-meta">${formatScore(card.scores?.aggregate ?? 0)}</span>
+            </div>
+        </div>
+    `).join('');
+
+    const patternCards = analytics.patternStats.map(stat => `
+        <div class="pattern-chip">
+            <span class="pattern-icon">${patternIcon(stat.label)}</span>
+            <span>${escapeHtml(stat.label)}</span>
+            <span class="pattern-chip-meta">${stat.count}</span>
+        </div>
+    `).join('');
+
+    const insightChips = analytics.insights.map(insight => `
+        <div class="insight-chip">
+            <span class="insight-icon">${insight.icon}</span>
+            <span class="insight-text">${escapeHtml(insight.text)}</span>
+        </div>
+    `).join('');
+
+    return `
+        <section class="library-analytics-panel">
+            <div class="library-analytics-hero">
+                <div class="analytics-title-block">
+                    <div class="analytics-kicker">Library Analytics</div>
+                    <h2>Accepted Mechanic Overview</h2>
+                    <p>Robustness, family performance, and cross-game compatibility at a glance.</p>
+                </div>
+                <div class="analytics-score-ring">
+                    <div class="score-ring-value">${analytics.overview.avgAggregate.toFixed(2)}</div>
+                    <div class="score-ring-label">Avg Aggregate</div>
+                </div>
+            </div>
+
+            <div class="analytics-overview-grid">
+                <div class="analytics-stat-card primary">
+                    <div class="analytics-stat-icon">#</div>
+                    <div class="analytics-stat-label">Accepted</div>
+                    <div class="analytics-stat-value">${analytics.overview.total}</div>
+                    <div class="analytics-stat-sub">${analytics.overview.boardCount} board · ${analytics.overview.cardCount} card</div>
+                </div>
+                <div class="analytics-stat-card">
+                    <div class="analytics-stat-icon">D</div>
+                    <div class="analytics-stat-label">High Depth</div>
+                    <div class="analytics-stat-value">${analytics.overview.highDepthCount}</div>
+                    <div class="analytics-stat-sub">depth >= 0.80</div>
+                </div>
+                <div class="analytics-stat-card">
+                    <div class="analytics-stat-icon">F</div>
+                    <div class="analytics-stat-label">Most Fair Family</div>
+                    <div class="analytics-stat-value small">${escapeHtml(analytics.overview.mostFairFamily)}</div>
+                    <div class="analytics-stat-sub">highest avg balance</div>
+                </div>
+                <div class="analytics-stat-card">
+                    <div class="analytics-stat-icon">G</div>
+                    <div class="analytics-stat-label">Best Game Type</div>
+                    <div class="analytics-stat-value small">${escapeHtml(analytics.overview.bestGameType)}</div>
+                    <div class="analytics-stat-sub">higher avg aggregate</div>
+                </div>
+            </div>
+
+            <section class="analytics-section robustness-section">
+                <div class="analytics-section-header">
+                    <h3>Robustness Distribution</h3>
+                    <span>cross-game verifier labels</span>
+                </div>
+                <div class="robustness-stat-grid">${robustnessCards}</div>
+                <div class="robustness-bar">${robustnessBar}</div>
+            </section>
+
+            <div class="analytics-sections">
+                <section class="analytics-section">
+                    <div class="analytics-section-header">
+                        <h3>Family Performance</h3>
+                        <span>B / D / A / R</span>
+                    </div>
+                    <div class="analytics-type-grid">${familyCards}</div>
+                </section>
+
+                <section class="analytics-section analytics-side-section">
+                    <div class="analytics-section-header">
+                        <h3>Top Mechanics</h3>
+                        <span>aggregate rank</span>
+                    </div>
+                    <div class="analytics-best-list">${bestCards}</div>
+                    <div class="analytics-section-header secondary">
+                        <h3>Patterns</h3>
+                        <span>common motifs</span>
+                    </div>
+                    <div class="analytics-mini-grid">${patternCards}</div>
+                </section>
+            </div>
+
+            <section class="analytics-section">
+                <div class="analytics-section-header">
+                    <h3>Quick Read</h3>
+                    <span>generated from current library</span>
+                </div>
+                <div class="analytics-insight-grid">${insightChips}</div>
+            </section>
+        </section>`;
+}
 
 function classifyMechanic(card) {
     const text = `${card.mechanic_name || ''} ${card.description || ''}`.toLowerCase();
@@ -1448,13 +1637,99 @@ function summarizeBy(cards, keyFn) {
 }
 
 function toMetricSummary(group) {
+    const robustCount = group.cards.filter(card => card.robustnessLabel === 'robust').length;
+    const contextCount = group.cards.filter(card => card.robustnessLabel === 'context_sensitive').length;
+    const nonRobustCount = group.cards.filter(card => card.robustnessLabel === 'non_robust').length;
+    const testedCount = group.cards.filter(card => card.robustnessLabel !== 'untested').length;
     return {
         label: group.label,
         count: group.cards.length,
         avgBalance: average(group.cards.map(card => 1 - (card.scores?.balance_gap ?? 1))),
         avgDepth: average(group.cards.map(card => card.scores?.depth ?? 0)),
         avgAggregate: average(group.cards.map(card => card.scores?.aggregate ?? 0)),
+        robustCount,
+        contextCount,
+        nonRobustCount,
+        testedCount,
+        robustRate: testedCount ? robustCount / testedCount : 0,
     };
+}
+
+function normalizeRobustness(raw) {
+    const knownLabels = new Set(['robust', 'context_sensitive', 'non_robust']);
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const label = knownLabels.has(source.label) ? source.label : 'untested';
+    return {
+        label,
+        compatible_game_types: Array.isArray(source.compatible_game_types) ? source.compatible_game_types : [],
+        failed_game_types: Array.isArray(source.failed_game_types) ? source.failed_game_types : [],
+        per_game: source.per_game && typeof source.per_game === 'object' ? source.per_game : {},
+        tested_games: Number(source.tested_games || 0),
+    };
+}
+
+function robustnessTitle(label) {
+    const titles = {
+        robust: 'Robust',
+        context_sensitive: 'Context-sensitive',
+        non_robust: 'Non-robust',
+        untested: 'Untested',
+    };
+    return titles[label] || 'Untested';
+}
+
+function robustnessClass(label) {
+    return (label || 'untested').replace(/_/g, '-');
+}
+
+function robustnessIcon(label) {
+    if (label === 'robust') return 'R';
+    if (label === 'context_sensitive') return 'C';
+    if (label === 'non_robust') return '!';
+    return '?';
+}
+
+function robustnessSummary(robustness) {
+    if (!robustness || robustness.label === 'untested') return 'No cross-game robustness pass yet';
+    const ok = robustness.compatible_game_types.length;
+    const fail = robustness.failed_game_types.length;
+    return `${ok} compatible · ${fail} failed · ${robustness.tested_games || ok + fail} tested`;
+}
+
+function summarizeRobustness(cards) {
+    const order = ['robust', 'context_sensitive', 'non_robust', 'untested'];
+    const total = cards.length || 1;
+    return order.map(label => {
+        const count = cards.filter(card => card.robustnessLabel === label).length;
+        return {
+            label,
+            count,
+            percent: (count / total) * 100,
+        };
+    });
+}
+
+function compatPills(items, tone) {
+    if (!items || !items.length) return '<span class="mini-pill muted">none</span>';
+    return items.map(item => `<span class="mini-pill ${tone}">${escapeHtml(item)}</span>`).join('');
+}
+
+function gameResultChips(card) {
+    const perGame = card.robustness?.per_game || {};
+    const keys = Object.keys(perGame).sort();
+    if (!keys.length) return '<div class="game-result-chip muted">No per-game verifier data</div>';
+    return keys.map(game => {
+        const result = perGame[game] || {};
+        const decision = result.decision || 'unknown';
+        const cls = decision === 'accept' ? 'ok' : 'fail';
+        const reason = result.reason || 'no reason';
+        return `
+            <div class="game-result-chip ${cls}">
+                <span>${escapeHtml(game)}</span>
+                <strong>${escapeHtml(decision)}</strong>
+                <small>${escapeHtml(reason)}</small>
+            </div>`;
+    }).join('');
 }
 
 function buildInsights(allCards, familyStats, patternStats, boardCards, cardCards) {

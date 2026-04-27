@@ -203,8 +203,13 @@ def _build_library_cards():
             base_card = {
                 "game_type": game_type,
                 "mechanic_name": entry.get("mechanic_name", ""),
+                "mechanic_type": entry.get("mechanic_type", ""),
                 "description": entry.get("description", ""),
+                "justification": entry.get("justification", ""),
+                "python_code": entry.get("python_code", ""),
                 "scores": entry.get("scores", {}),
+                "verification": entry.get("verification", {}),
+                "robustness": entry.get("robustness", {}),
                 "iteration": entry.get("iteration"),
                 "runtime_report": None,
                 "replay": None,
@@ -216,6 +221,8 @@ def _build_library_cards():
             if replay_card:
                 base_card.update({
                     "description": replay_card.get("description", base_card["description"]),
+                    "verification": replay_card.get("verification", base_card["verification"]),
+                    "robustness": replay_card.get("robustness", base_card["robustness"]),
                     "replay": replay_card.get("replay"),
                     "runtime_report": replay_card.get("runtime_report"),
                 })
