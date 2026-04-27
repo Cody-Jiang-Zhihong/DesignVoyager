@@ -108,7 +108,7 @@ class VerificationInput:
 
 @dataclass
 class VerificationOutput:
-    decision: str                    # accept / revise / discard
+    decision: str                   
     reason: str
     stage: int
 
@@ -122,6 +122,40 @@ class VerificationOutput:
     failure_modes: List[str] = field(default_factory=list)
     repair_feedback: Optional[str] = None
 
+    metadata_for_library: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class CrossGameVerificationRecord:
+    """
+    One verification result for the same mechanic tested in one base game.
+    """
+    game_name: str
+    game_type: str
+    verification_output: VerificationOutput
+
+
+@dataclass
+class CrossGameVerificationInput:
+    """
+    Collection of per-game verification results for cross-game robustness checks.
+    """
+    records: List[CrossGameVerificationRecord]
+
+
+@dataclass
+class CrossGameVerificationOutput:
+    robustness_label: str           
+    reason: str
+    tested_games: int
+    pass_rate: float
+    positive_rate: float
+    mean_relative_score: float
+    compatible_game_types: List[str]
+    failed_game_types: List[str]
     metadata_for_library: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
