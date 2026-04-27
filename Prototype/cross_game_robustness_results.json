@@ -1,0 +1,2113 @@
+[
+  {
+    "mechanic_name": "safe_exact_12_block",
+    "original_game_type": "card",
+    "source_path": "C:\\Users\\Jiang\\Documents\\GitHub\\DesignVoyager\\Prototype\\library_card.json",
+    "source_index": 2,
+    "robustness": {
+      "label": "context_sensitive",
+      "reason": "performance_depends_on_game_type",
+      "compatible_game_types": [
+        "card"
+      ],
+      "failed_game_types": [
+        "board"
+      ],
+      "tested_games": 2,
+      "pass_rate": 0.5,
+      "positive_rate": 0.5,
+      "mean_relative_score": 0.0007096153846153919,
+      "hard_failure_rate": 0.0,
+      "game_type_summaries": {
+        "board": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": -0.0332,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        },
+        "card": {
+          "tested_games": 1,
+          "pass_rate": 1.0,
+          "mean_relative_score": 0.034619230769230784,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": true,
+          "is_failed_or_risky_game_type": false
+        }
+      },
+      "per_game_results": [
+        {
+          "game_type": "board",
+          "decision": "discard",
+          "reason": "negative_relative_gain",
+          "relative_score": -0.0332,
+          "overall_score": 0.9585,
+          "failure_modes": [
+            "negative_relative_gain"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.16599999999999998,
+            "balance_score": 0.8340000000000001,
+            "depth": 1.0,
+            "decisiveness": 1.0,
+            "agency": 1.0,
+            "coverage": 0.5555555555555556,
+            "avg_game_length": 20.417,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": 0.16599999999999998,
+            "delta_depth": 0.0,
+            "delta_decisiveness": 0.0,
+            "delta_agency": 0.0,
+            "delta_coverage": 0.0
+          },
+          "trigger_stats": {
+            "trigger_count": 245,
+            "triggered_matches": 12,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 245
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        },
+        {
+          "game_type": "card",
+          "decision": "accept",
+          "reason": "positive_relative_gain",
+          "relative_score": 0.034619230769230784,
+          "overall_score": 0.9530500000000001,
+          "failure_modes": [],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.063,
+            "balance_score": 0.937,
+            "depth": 0.938,
+            "decisiveness": 0.812,
+            "agency": 0.9326923076923077,
+            "coverage": 0.6,
+            "avg_game_length": 6.5,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": 0.063,
+            "delta_depth": 0.125,
+            "delta_decisiveness": -0.06299999999999994,
+            "delta_agency": -0.027307692307692255,
+            "delta_coverage": 0.0
+          },
+          "trigger_stats": {
+            "trigger_count": 104,
+            "triggered_matches": 16,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 20
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        }
+      ]
+    },
+    "per_game_results": [
+      {
+        "game_type": "board",
+        "decision": "discard",
+        "reason": "negative_relative_gain",
+        "relative_score": -0.0332,
+        "overall_score": 0.9585,
+        "failure_modes": [
+          "negative_relative_gain"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.16599999999999998,
+          "balance_score": 0.8340000000000001,
+          "depth": 1.0,
+          "decisiveness": 1.0,
+          "agency": 1.0,
+          "coverage": 0.5555555555555556,
+          "avg_game_length": 20.417,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": 0.16599999999999998,
+          "delta_depth": 0.0,
+          "delta_decisiveness": 0.0,
+          "delta_agency": 0.0,
+          "delta_coverage": 0.0
+        },
+        "trigger_stats": {
+          "trigger_count": 245,
+          "triggered_matches": 12,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 245
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      },
+      {
+        "game_type": "card",
+        "decision": "accept",
+        "reason": "positive_relative_gain",
+        "relative_score": 0.034619230769230784,
+        "overall_score": 0.9530500000000001,
+        "failure_modes": [],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.063,
+          "balance_score": 0.937,
+          "depth": 0.938,
+          "decisiveness": 0.812,
+          "agency": 0.9326923076923077,
+          "coverage": 0.6,
+          "avg_game_length": 6.5,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": 0.063,
+          "delta_depth": 0.125,
+          "delta_decisiveness": -0.06299999999999994,
+          "delta_agency": -0.027307692307692255,
+          "delta_coverage": 0.0
+        },
+        "trigger_stats": {
+          "trigger_count": 104,
+          "triggered_matches": 16,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 20
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      }
+    ]
+  },
+  {
+    "mechanic_name": "diagonal_capture_on_placement",
+    "original_game_type": "board",
+    "source_path": "C:\\Users\\Jiang\\Documents\\GitHub\\DesignVoyager\\Prototype\\library.json",
+    "source_index": 2,
+    "robustness": {
+      "label": "non_robust",
+      "reason": "insufficient_or_unstable_cross_game_performance",
+      "compatible_game_types": [],
+      "failed_game_types": [
+        "board",
+        "card"
+      ],
+      "tested_games": 2,
+      "pass_rate": 0.0,
+      "positive_rate": 0.0,
+      "mean_relative_score": -0.03734999999999999,
+      "hard_failure_rate": 0.5,
+      "game_type_summaries": {
+        "board": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": -0.07469999999999997,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        },
+        "card": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": 0.0,
+          "hard_failure_count": 1,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        }
+      },
+      "per_game_results": [
+        {
+          "game_type": "board",
+          "decision": "discard",
+          "reason": "negative_relative_gain",
+          "relative_score": -0.07469999999999997,
+          "overall_score": 0.9253000000000001,
+          "failure_modes": [
+            "negative_relative_gain"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.16599999999999998,
+            "balance_score": 0.8340000000000001,
+            "depth": 0.8340000000000001,
+            "decisiveness": 1.0,
+            "agency": 1.0,
+            "coverage": 0.5555555555555556,
+            "avg_game_length": 20.25,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": 0.0,
+            "delta_depth": -0.16599999999999993,
+            "delta_decisiveness": 0.0,
+            "delta_agency": 0.0,
+            "delta_coverage": -0.05555555555555558
+          },
+          "trigger_stats": {
+            "trigger_count": 243,
+            "triggered_matches": 12,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 243
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        },
+        {
+          "game_type": "card",
+          "decision": "discard",
+          "reason": "no_state_change",
+          "relative_score": 0.0,
+          "overall_score": 0.90625,
+          "failure_modes": [
+            "no_state_change"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.125,
+            "balance_score": 0.875,
+            "depth": 0.75,
+            "decisiveness": 0.875,
+            "agency": 0.9423076923076923,
+            "coverage": 0.6,
+            "avg_game_length": 6.5,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {},
+          "trigger_stats": {
+            "trigger_count": 104,
+            "triggered_matches": 16,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 0
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        }
+      ]
+    },
+    "per_game_results": [
+      {
+        "game_type": "board",
+        "decision": "discard",
+        "reason": "negative_relative_gain",
+        "relative_score": -0.07469999999999997,
+        "overall_score": 0.9253000000000001,
+        "failure_modes": [
+          "negative_relative_gain"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.16599999999999998,
+          "balance_score": 0.8340000000000001,
+          "depth": 0.8340000000000001,
+          "decisiveness": 1.0,
+          "agency": 1.0,
+          "coverage": 0.5555555555555556,
+          "avg_game_length": 20.25,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": 0.0,
+          "delta_depth": -0.16599999999999993,
+          "delta_decisiveness": 0.0,
+          "delta_agency": 0.0,
+          "delta_coverage": -0.05555555555555558
+        },
+        "trigger_stats": {
+          "trigger_count": 243,
+          "triggered_matches": 12,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 243
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      },
+      {
+        "game_type": "card",
+        "decision": "discard",
+        "reason": "no_state_change",
+        "relative_score": 0.0,
+        "overall_score": 0.90625,
+        "failure_modes": [
+          "no_state_change"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.125,
+          "balance_score": 0.875,
+          "depth": 0.75,
+          "decisiveness": 0.875,
+          "agency": 0.9423076923076923,
+          "coverage": 0.6,
+          "avg_game_length": 6.5,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {},
+        "trigger_stats": {
+          "trigger_count": 104,
+          "triggered_matches": 16,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 0
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      }
+    ]
+  },
+  {
+    "mechanic_name": "diagonal_freeze_on_placement",
+    "original_game_type": "board",
+    "source_path": "C:\\Users\\Jiang\\Documents\\GitHub\\DesignVoyager\\Prototype\\library.json",
+    "source_index": 3,
+    "robustness": {
+      "label": "non_robust",
+      "reason": "insufficient_or_unstable_cross_game_performance",
+      "compatible_game_types": [],
+      "failed_game_types": [
+        "board",
+        "card"
+      ],
+      "tested_games": 2,
+      "pass_rate": 0.0,
+      "positive_rate": 0.0,
+      "mean_relative_score": -0.09195000000000003,
+      "hard_failure_rate": 0.5,
+      "game_type_summaries": {
+        "board": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": -0.18390000000000006,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        },
+        "card": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": 0.0,
+          "hard_failure_count": 1,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        }
+      },
+      "per_game_results": [
+        {
+          "game_type": "board",
+          "decision": "discard",
+          "reason": "negative_relative_gain",
+          "relative_score": -0.18390000000000006,
+          "overall_score": 0.8165,
+          "failure_modes": [
+            "negative_relative_gain"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.334,
+            "balance_score": 0.6659999999999999,
+            "depth": 0.5,
+            "decisiveness": 1.0,
+            "agency": 1.0,
+            "coverage": 0.5555555555555556,
+            "avg_game_length": 20.333,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": 0.16800000000000004,
+            "delta_depth": -0.3340000000000001,
+            "delta_decisiveness": 0.0,
+            "delta_agency": 0.0,
+            "delta_coverage": 0.02777777777777779
+          },
+          "trigger_stats": {
+            "trigger_count": 244,
+            "triggered_matches": 12,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 244
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        },
+        {
+          "game_type": "card",
+          "decision": "discard",
+          "reason": "no_state_change",
+          "relative_score": 0.0,
+          "overall_score": 0.9533,
+          "failure_modes": [
+            "no_state_change"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.062,
+            "balance_score": 0.938,
+            "depth": 0.875,
+            "decisiveness": 0.938,
+            "agency": 0.9587628865979382,
+            "coverage": 0.6,
+            "avg_game_length": 6.062,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {},
+          "trigger_stats": {
+            "trigger_count": 97,
+            "triggered_matches": 16,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 0
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        }
+      ]
+    },
+    "per_game_results": [
+      {
+        "game_type": "board",
+        "decision": "discard",
+        "reason": "negative_relative_gain",
+        "relative_score": -0.18390000000000006,
+        "overall_score": 0.8165,
+        "failure_modes": [
+          "negative_relative_gain"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.334,
+          "balance_score": 0.6659999999999999,
+          "depth": 0.5,
+          "decisiveness": 1.0,
+          "agency": 1.0,
+          "coverage": 0.5555555555555556,
+          "avg_game_length": 20.333,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": 0.16800000000000004,
+          "delta_depth": -0.3340000000000001,
+          "delta_decisiveness": 0.0,
+          "delta_agency": 0.0,
+          "delta_coverage": 0.02777777777777779
+        },
+        "trigger_stats": {
+          "trigger_count": 244,
+          "triggered_matches": 12,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 244
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      },
+      {
+        "game_type": "card",
+        "decision": "discard",
+        "reason": "no_state_change",
+        "relative_score": 0.0,
+        "overall_score": 0.9533,
+        "failure_modes": [
+          "no_state_change"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.062,
+          "balance_score": 0.938,
+          "depth": 0.875,
+          "decisiveness": 0.938,
+          "agency": 0.9587628865979382,
+          "coverage": 0.6,
+          "avg_game_length": 6.062,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {},
+        "trigger_stats": {
+          "trigger_count": 97,
+          "triggered_matches": 16,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 0
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      }
+    ]
+  },
+  {
+    "mechanic_name": "orthogonal_swap_on_capture",
+    "original_game_type": "board",
+    "source_path": "C:\\Users\\Jiang\\Documents\\GitHub\\DesignVoyager\\Prototype\\library.json",
+    "source_index": 5,
+    "robustness": {
+      "label": "non_robust",
+      "reason": "insufficient_or_unstable_cross_game_performance",
+      "compatible_game_types": [],
+      "failed_game_types": [
+        "board",
+        "card"
+      ],
+      "tested_games": 2,
+      "pass_rate": 0.0,
+      "positive_rate": 0.0,
+      "mean_relative_score": -0.0166,
+      "hard_failure_rate": 0.5,
+      "game_type_summaries": {
+        "board": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": -0.0332,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        },
+        "card": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": 0.0,
+          "hard_failure_count": 1,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        }
+      },
+      "per_game_results": [
+        {
+          "game_type": "board",
+          "decision": "discard",
+          "reason": "negative_relative_gain",
+          "relative_score": -0.0332,
+          "overall_score": 0.9585,
+          "failure_modes": [
+            "negative_relative_gain"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.16599999999999998,
+            "balance_score": 0.8340000000000001,
+            "depth": 1.0,
+            "decisiveness": 1.0,
+            "agency": 1.0,
+            "coverage": 0.6111111111111112,
+            "avg_game_length": 21.917,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": 0.16599999999999998,
+            "delta_depth": 0.0,
+            "delta_decisiveness": 0.0,
+            "delta_agency": 0.0,
+            "delta_coverage": 0.11111111111111116
+          },
+          "trigger_stats": {
+            "trigger_count": 263,
+            "triggered_matches": 12,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 263
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        },
+        {
+          "game_type": "card",
+          "decision": "discard",
+          "reason": "no_state_change",
+          "relative_score": 0.0,
+          "overall_score": 0.9499,
+          "failure_modes": [
+            "no_state_change"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.0,
+            "balance_score": 1.0,
+            "depth": 0.812,
+            "decisiveness": 0.875,
+            "agency": 0.9494949494949495,
+            "coverage": 0.6,
+            "avg_game_length": 6.188,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {},
+          "trigger_stats": {
+            "trigger_count": 99,
+            "triggered_matches": 16,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 0
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        }
+      ]
+    },
+    "per_game_results": [
+      {
+        "game_type": "board",
+        "decision": "discard",
+        "reason": "negative_relative_gain",
+        "relative_score": -0.0332,
+        "overall_score": 0.9585,
+        "failure_modes": [
+          "negative_relative_gain"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.16599999999999998,
+          "balance_score": 0.8340000000000001,
+          "depth": 1.0,
+          "decisiveness": 1.0,
+          "agency": 1.0,
+          "coverage": 0.6111111111111112,
+          "avg_game_length": 21.917,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": 0.16599999999999998,
+          "delta_depth": 0.0,
+          "delta_decisiveness": 0.0,
+          "delta_agency": 0.0,
+          "delta_coverage": 0.11111111111111116
+        },
+        "trigger_stats": {
+          "trigger_count": 263,
+          "triggered_matches": 12,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 263
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      },
+      {
+        "game_type": "card",
+        "decision": "discard",
+        "reason": "no_state_change",
+        "relative_score": 0.0,
+        "overall_score": 0.9499,
+        "failure_modes": [
+          "no_state_change"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.0,
+          "balance_score": 1.0,
+          "depth": 0.812,
+          "decisiveness": 0.875,
+          "agency": 0.9494949494949495,
+          "coverage": 0.6,
+          "avg_game_length": 6.188,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {},
+        "trigger_stats": {
+          "trigger_count": 99,
+          "triggered_matches": 16,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 0
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      }
+    ]
+  },
+  {
+    "mechanic_name": "orthogonal_block_on_placement",
+    "original_game_type": "board",
+    "source_path": "C:\\Users\\Jiang\\Documents\\GitHub\\DesignVoyager\\Prototype\\library.json",
+    "source_index": 7,
+    "robustness": {
+      "label": "context_sensitive",
+      "reason": "performance_depends_on_game_type",
+      "compatible_game_types": [
+        "board"
+      ],
+      "failed_game_types": [
+        "card"
+      ],
+      "tested_games": 2,
+      "pass_rate": 0.5,
+      "positive_rate": 0.5,
+      "mean_relative_score": 0.016800000000000006,
+      "hard_failure_rate": 0.5,
+      "game_type_summaries": {
+        "board": {
+          "tested_games": 1,
+          "pass_rate": 1.0,
+          "mean_relative_score": 0.03360000000000001,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": true,
+          "is_failed_or_risky_game_type": false
+        },
+        "card": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": 0.0,
+          "hard_failure_count": 1,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        }
+      },
+      "per_game_results": [
+        {
+          "game_type": "board",
+          "decision": "accept",
+          "reason": "positive_relative_gain",
+          "relative_score": 0.03360000000000001,
+          "overall_score": 0.9253000000000001,
+          "failure_modes": [],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.16599999999999998,
+            "balance_score": 0.8340000000000001,
+            "depth": 0.8340000000000001,
+            "decisiveness": 1.0,
+            "agency": 1.0,
+            "coverage": 0.5833333333333334,
+            "avg_game_length": 20.917,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": -0.16800000000000004,
+            "delta_depth": 0.0,
+            "delta_decisiveness": 0.0,
+            "delta_agency": 0.0,
+            "delta_coverage": 0.08333333333333337
+          },
+          "trigger_stats": {
+            "trigger_count": 251,
+            "triggered_matches": 12,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 251
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        },
+        {
+          "game_type": "card",
+          "decision": "discard",
+          "reason": "no_state_change",
+          "relative_score": 0.0,
+          "overall_score": 0.8935,
+          "failure_modes": [
+            "no_state_change"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.126,
+            "balance_score": 0.874,
+            "depth": 0.75,
+            "decisiveness": 0.75,
+            "agency": 0.911504424778761,
+            "coverage": 0.7,
+            "avg_game_length": 7.062,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {},
+          "trigger_stats": {
+            "trigger_count": 113,
+            "triggered_matches": 16,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 0
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        }
+      ]
+    },
+    "per_game_results": [
+      {
+        "game_type": "board",
+        "decision": "accept",
+        "reason": "positive_relative_gain",
+        "relative_score": 0.03360000000000001,
+        "overall_score": 0.9253000000000001,
+        "failure_modes": [],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.16599999999999998,
+          "balance_score": 0.8340000000000001,
+          "depth": 0.8340000000000001,
+          "decisiveness": 1.0,
+          "agency": 1.0,
+          "coverage": 0.5833333333333334,
+          "avg_game_length": 20.917,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": -0.16800000000000004,
+          "delta_depth": 0.0,
+          "delta_decisiveness": 0.0,
+          "delta_agency": 0.0,
+          "delta_coverage": 0.08333333333333337
+        },
+        "trigger_stats": {
+          "trigger_count": 251,
+          "triggered_matches": 12,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 251
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      },
+      {
+        "game_type": "card",
+        "decision": "discard",
+        "reason": "no_state_change",
+        "relative_score": 0.0,
+        "overall_score": 0.8935,
+        "failure_modes": [
+          "no_state_change"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.126,
+          "balance_score": 0.874,
+          "depth": 0.75,
+          "decisiveness": 0.75,
+          "agency": 0.911504424778761,
+          "coverage": 0.7,
+          "avg_game_length": 7.062,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {},
+        "trigger_stats": {
+          "trigger_count": 113,
+          "triggered_matches": 16,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 0
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      }
+    ]
+  },
+  {
+    "mechanic_name": "adjacent_capture_on_placement_symmetric",
+    "original_game_type": "board",
+    "source_path": "C:\\Users\\Jiang\\Documents\\GitHub\\DesignVoyager\\Prototype\\library.json",
+    "source_index": 11,
+    "robustness": {
+      "label": "non_robust",
+      "reason": "insufficient_or_unstable_cross_game_performance",
+      "compatible_game_types": [],
+      "failed_game_types": [
+        "board",
+        "card"
+      ],
+      "tested_games": 2,
+      "pass_rate": 0.0,
+      "positive_rate": 0.0,
+      "mean_relative_score": 0.0,
+      "hard_failure_rate": 0.5,
+      "game_type_summaries": {
+        "board": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": 0.0,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        },
+        "card": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": 0.0,
+          "hard_failure_count": 1,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        }
+      },
+      "per_game_results": [
+        {
+          "game_type": "board",
+          "decision": "discard",
+          "reason": "negative_relative_gain",
+          "relative_score": 0.0,
+          "overall_score": 0.9668,
+          "failure_modes": [
+            "negative_relative_gain"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.0,
+            "balance_score": 1.0,
+            "depth": 0.8340000000000001,
+            "decisiveness": 1.0,
+            "agency": 1.0,
+            "coverage": 0.5555555555555556,
+            "avg_game_length": 20.167,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": 0.0,
+            "delta_depth": 0.0,
+            "delta_decisiveness": 0.0,
+            "delta_agency": 0.0,
+            "delta_coverage": 0.0
+          },
+          "trigger_stats": {
+            "trigger_count": 242,
+            "triggered_matches": 12,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 242
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        },
+        {
+          "game_type": "card",
+          "decision": "discard",
+          "reason": "no_state_change",
+          "relative_score": 0.0,
+          "overall_score": 0.9251999999999999,
+          "failure_modes": [
+            "no_state_change"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.0,
+            "balance_score": 1.0,
+            "depth": 0.6259999999999999,
+            "decisiveness": 1.0,
+            "agency": 0.9795918367346939,
+            "coverage": 0.6,
+            "avg_game_length": 6.125,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {},
+          "trigger_stats": {
+            "trigger_count": 98,
+            "triggered_matches": 16,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 0
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        }
+      ]
+    },
+    "per_game_results": [
+      {
+        "game_type": "board",
+        "decision": "discard",
+        "reason": "negative_relative_gain",
+        "relative_score": 0.0,
+        "overall_score": 0.9668,
+        "failure_modes": [
+          "negative_relative_gain"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.0,
+          "balance_score": 1.0,
+          "depth": 0.8340000000000001,
+          "decisiveness": 1.0,
+          "agency": 1.0,
+          "coverage": 0.5555555555555556,
+          "avg_game_length": 20.167,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": 0.0,
+          "delta_depth": 0.0,
+          "delta_decisiveness": 0.0,
+          "delta_agency": 0.0,
+          "delta_coverage": 0.0
+        },
+        "trigger_stats": {
+          "trigger_count": 242,
+          "triggered_matches": 12,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 242
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      },
+      {
+        "game_type": "card",
+        "decision": "discard",
+        "reason": "no_state_change",
+        "relative_score": 0.0,
+        "overall_score": 0.9251999999999999,
+        "failure_modes": [
+          "no_state_change"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.0,
+          "balance_score": 1.0,
+          "depth": 0.6259999999999999,
+          "decisiveness": 1.0,
+          "agency": 0.9795918367346939,
+          "coverage": 0.6,
+          "avg_game_length": 6.125,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {},
+        "trigger_stats": {
+          "trigger_count": 98,
+          "triggered_matches": 16,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 0
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      }
+    ]
+  },
+  {
+    "mechanic_name": "diagonal_flip_adjacent_on_placement",
+    "original_game_type": "board",
+    "source_path": "C:\\Users\\Jiang\\Documents\\GitHub\\DesignVoyager\\Prototype\\library.json",
+    "source_index": 12,
+    "robustness": {
+      "label": "non_robust",
+      "reason": "insufficient_or_unstable_cross_game_performance",
+      "compatible_game_types": [],
+      "failed_game_types": [
+        "board",
+        "card"
+      ],
+      "tested_games": 2,
+      "pass_rate": 0.0,
+      "positive_rate": 0.0,
+      "mean_relative_score": -0.004055447470817131,
+      "hard_failure_rate": 0.5,
+      "game_type_summaries": {
+        "board": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": -0.008110894941634262,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        },
+        "card": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": 0.0,
+          "hard_failure_count": 1,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        }
+      },
+      "per_game_results": [
+        {
+          "game_type": "board",
+          "decision": "discard",
+          "reason": "negative_relative_gain",
+          "relative_score": -0.008110894941634262,
+          "overall_score": 0.9165,
+          "failure_modes": [
+            "negative_relative_gain"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.334,
+            "balance_score": 0.6659999999999999,
+            "depth": 1.0,
+            "decisiveness": 1.0,
+            "agency": 1.0,
+            "coverage": 0.5555555555555556,
+            "avg_game_length": 20.0,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": 0.08400000000000007,
+            "delta_depth": 0.0,
+            "delta_decisiveness": 0.08299999999999996,
+            "delta_agency": 0.0038910505836575737,
+            "delta_coverage": -0.02777777777777779
+          },
+          "trigger_stats": {
+            "trigger_count": 240,
+            "triggered_matches": 12,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 240
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        },
+        {
+          "game_type": "card",
+          "decision": "discard",
+          "reason": "no_state_change",
+          "relative_score": 0.0,
+          "overall_score": 0.9535,
+          "failure_modes": [
+            "no_state_change"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.062,
+            "balance_score": 0.938,
+            "depth": 0.8759999999999999,
+            "decisiveness": 0.938,
+            "agency": 0.9622641509433962,
+            "coverage": 0.7,
+            "avg_game_length": 6.625,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {},
+          "trigger_stats": {
+            "trigger_count": 106,
+            "triggered_matches": 16,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 0
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        }
+      ]
+    },
+    "per_game_results": [
+      {
+        "game_type": "board",
+        "decision": "discard",
+        "reason": "negative_relative_gain",
+        "relative_score": -0.008110894941634262,
+        "overall_score": 0.9165,
+        "failure_modes": [
+          "negative_relative_gain"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.334,
+          "balance_score": 0.6659999999999999,
+          "depth": 1.0,
+          "decisiveness": 1.0,
+          "agency": 1.0,
+          "coverage": 0.5555555555555556,
+          "avg_game_length": 20.0,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": 0.08400000000000007,
+          "delta_depth": 0.0,
+          "delta_decisiveness": 0.08299999999999996,
+          "delta_agency": 0.0038910505836575737,
+          "delta_coverage": -0.02777777777777779
+        },
+        "trigger_stats": {
+          "trigger_count": 240,
+          "triggered_matches": 12,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 240
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      },
+      {
+        "game_type": "card",
+        "decision": "discard",
+        "reason": "no_state_change",
+        "relative_score": 0.0,
+        "overall_score": 0.9535,
+        "failure_modes": [
+          "no_state_change"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.062,
+          "balance_score": 0.938,
+          "depth": 0.8759999999999999,
+          "decisiveness": 0.938,
+          "agency": 0.9622641509433962,
+          "coverage": 0.7,
+          "avg_game_length": 6.625,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {},
+        "trigger_stats": {
+          "trigger_count": 106,
+          "triggered_matches": 16,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 0
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      }
+    ]
+  },
+  {
+    "mechanic_name": "wild_pause_action",
+    "original_game_type": "card",
+    "source_path": "C:\\Users\\Jiang\\Documents\\GitHub\\DesignVoyager\\Prototype\\library_card.json",
+    "source_index": 0,
+    "robustness": {
+      "label": "robust",
+      "reason": "mostly_positive_across_tested_games",
+      "compatible_game_types": [
+        "board",
+        "card"
+      ],
+      "failed_game_types": [],
+      "tested_games": 2,
+      "pass_rate": 1.0,
+      "positive_rate": 1.0,
+      "mean_relative_score": 0.06757455528603193,
+      "hard_failure_rate": 0.0,
+      "game_type_summaries": {
+        "board": {
+          "tested_games": 1,
+          "pass_rate": 1.0,
+          "mean_relative_score": 0.03360000000000001,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": true,
+          "is_failed_or_risky_game_type": false
+        },
+        "card": {
+          "tested_games": 1,
+          "pass_rate": 1.0,
+          "mean_relative_score": 0.10154911057206384,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": true,
+          "is_failed_or_risky_game_type": false
+        }
+      },
+      "per_game_results": [
+        {
+          "game_type": "board",
+          "decision": "accept",
+          "reason": "positive_relative_gain",
+          "relative_score": 0.03360000000000001,
+          "overall_score": 0.9585,
+          "failure_modes": [],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.16599999999999998,
+            "balance_score": 0.8340000000000001,
+            "depth": 1.0,
+            "decisiveness": 1.0,
+            "agency": 1.0,
+            "coverage": 0.6111111111111112,
+            "avg_game_length": 21.75,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": -0.16800000000000004,
+            "delta_depth": 0.0,
+            "delta_decisiveness": 0.0,
+            "delta_agency": 0.0,
+            "delta_coverage": 0.05555555555555558
+          },
+          "trigger_stats": {
+            "trigger_count": 261,
+            "triggered_matches": 12,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 261
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        },
+        {
+          "game_type": "card",
+          "decision": "accept",
+          "reason": "positive_relative_gain",
+          "relative_score": 0.10154911057206384,
+          "overall_score": 0.9530500000000001,
+          "failure_modes": [],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.063,
+            "balance_score": 0.937,
+            "depth": 0.938,
+            "decisiveness": 0.812,
+            "agency": 0.9313725490196079,
+            "coverage": 0.6,
+            "avg_game_length": 6.375,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": -0.061000000000000054,
+            "delta_depth": 0.2509999999999999,
+            "delta_decisiveness": -0.18799999999999994,
+            "delta_agency": -0.04800889427936117,
+            "delta_coverage": 0.0
+          },
+          "trigger_stats": {
+            "trigger_count": 102,
+            "triggered_matches": 16,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 22
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        }
+      ]
+    },
+    "per_game_results": [
+      {
+        "game_type": "board",
+        "decision": "accept",
+        "reason": "positive_relative_gain",
+        "relative_score": 0.03360000000000001,
+        "overall_score": 0.9585,
+        "failure_modes": [],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.16599999999999998,
+          "balance_score": 0.8340000000000001,
+          "depth": 1.0,
+          "decisiveness": 1.0,
+          "agency": 1.0,
+          "coverage": 0.6111111111111112,
+          "avg_game_length": 21.75,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": -0.16800000000000004,
+          "delta_depth": 0.0,
+          "delta_decisiveness": 0.0,
+          "delta_agency": 0.0,
+          "delta_coverage": 0.05555555555555558
+        },
+        "trigger_stats": {
+          "trigger_count": 261,
+          "triggered_matches": 12,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 261
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      },
+      {
+        "game_type": "card",
+        "decision": "accept",
+        "reason": "positive_relative_gain",
+        "relative_score": 0.10154911057206384,
+        "overall_score": 0.9530500000000001,
+        "failure_modes": [],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.063,
+          "balance_score": 0.937,
+          "depth": 0.938,
+          "decisiveness": 0.812,
+          "agency": 0.9313725490196079,
+          "coverage": 0.6,
+          "avg_game_length": 6.375,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": -0.061000000000000054,
+          "delta_depth": 0.2509999999999999,
+          "delta_decisiveness": -0.18799999999999994,
+          "delta_agency": -0.04800889427936117,
+          "delta_coverage": 0.0
+        },
+        "trigger_stats": {
+          "trigger_count": 102,
+          "triggered_matches": 16,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 22
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      }
+    ]
+  },
+  {
+    "mechanic_name": "ace_of_choice_lockstep",
+    "original_game_type": "card",
+    "source_path": "C:\\Users\\Jiang\\Documents\\GitHub\\DesignVoyager\\Prototype\\library_card.json",
+    "source_index": 3,
+    "robustness": {
+      "label": "non_robust",
+      "reason": "insufficient_or_unstable_cross_game_performance",
+      "compatible_game_types": [],
+      "failed_game_types": [
+        "board",
+        "card"
+      ],
+      "tested_games": 2,
+      "pass_rate": 0.0,
+      "positive_rate": 0.0,
+      "mean_relative_score": -0.04301659332599927,
+      "hard_failure_rate": 0.5,
+      "game_type_summaries": {
+        "board": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": 0.0,
+          "hard_failure_count": 1,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        },
+        "card": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": -0.08603318665199854,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        }
+      },
+      "per_game_results": [
+        {
+          "game_type": "board",
+          "decision": "discard",
+          "reason": "no_state_change",
+          "relative_score": 0.0,
+          "overall_score": 0.9253000000000001,
+          "failure_modes": [
+            "no_state_change"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.16599999999999998,
+            "balance_score": 0.8340000000000001,
+            "depth": 0.8340000000000001,
+            "decisiveness": 1.0,
+            "agency": 1.0,
+            "coverage": 0.5277777777777778,
+            "avg_game_length": 19.083,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {},
+          "trigger_stats": {
+            "trigger_count": 229,
+            "triggered_matches": 12,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 0
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        },
+        {
+          "game_type": "card",
+          "decision": "discard",
+          "reason": "negative_relative_gain",
+          "relative_score": -0.08603318665199854,
+          "overall_score": 0.8904500000000001,
+          "failure_modes": [
+            "negative_relative_gain"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.063,
+            "balance_score": 0.937,
+            "depth": 0.625,
+            "decisiveness": 0.812,
+            "agency": 0.9405940594059405,
+            "coverage": 0.6,
+            "avg_game_length": 6.312,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": -0.125,
+            "delta_depth": -0.25,
+            "delta_decisiveness": 0.0,
+            "delta_agency": 0.014668133480014611,
+            "delta_coverage": -0.09999999999999998
+          },
+          "trigger_stats": {
+            "trigger_count": 101,
+            "triggered_matches": 16,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 4
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        }
+      ]
+    },
+    "per_game_results": [
+      {
+        "game_type": "board",
+        "decision": "discard",
+        "reason": "no_state_change",
+        "relative_score": 0.0,
+        "overall_score": 0.9253000000000001,
+        "failure_modes": [
+          "no_state_change"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.16599999999999998,
+          "balance_score": 0.8340000000000001,
+          "depth": 0.8340000000000001,
+          "decisiveness": 1.0,
+          "agency": 1.0,
+          "coverage": 0.5277777777777778,
+          "avg_game_length": 19.083,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {},
+        "trigger_stats": {
+          "trigger_count": 229,
+          "triggered_matches": 12,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 0
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      },
+      {
+        "game_type": "card",
+        "decision": "discard",
+        "reason": "negative_relative_gain",
+        "relative_score": -0.08603318665199854,
+        "overall_score": 0.8904500000000001,
+        "failure_modes": [
+          "negative_relative_gain"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.063,
+          "balance_score": 0.937,
+          "depth": 0.625,
+          "decisiveness": 0.812,
+          "agency": 0.9405940594059405,
+          "coverage": 0.6,
+          "avg_game_length": 6.312,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": -0.125,
+          "delta_depth": -0.25,
+          "delta_decisiveness": 0.0,
+          "delta_agency": 0.014668133480014611,
+          "delta_coverage": -0.09999999999999998
+        },
+        "trigger_stats": {
+          "trigger_count": 101,
+          "triggered_matches": 16,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 4
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      }
+    ]
+  },
+  {
+    "mechanic_name": "nearby_swap_on_6",
+    "original_game_type": "card",
+    "source_path": "C:\\Users\\Jiang\\Documents\\GitHub\\DesignVoyager\\Prototype\\library_card.json",
+    "source_index": 4,
+    "robustness": {
+      "label": "context_sensitive",
+      "reason": "performance_depends_on_game_type",
+      "compatible_game_types": [
+        "card"
+      ],
+      "failed_game_types": [
+        "board"
+      ],
+      "tested_games": 2,
+      "pass_rate": 0.5,
+      "positive_rate": 0.5,
+      "mean_relative_score": 0.023821228599784937,
+      "hard_failure_rate": 0.5,
+      "game_type_summaries": {
+        "board": {
+          "tested_games": 1,
+          "pass_rate": 0.0,
+          "mean_relative_score": 0.0,
+          "hard_failure_count": 1,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": false,
+          "is_failed_or_risky_game_type": true
+        },
+        "card": {
+          "tested_games": 1,
+          "pass_rate": 1.0,
+          "mean_relative_score": 0.047642457199569874,
+          "hard_failure_count": 0,
+          "repeated_hard_failures": false,
+          "is_positive_game_type": true,
+          "is_failed_or_risky_game_type": false
+        }
+      },
+      "per_game_results": [
+        {
+          "game_type": "board",
+          "decision": "discard",
+          "reason": "no_state_change",
+          "relative_score": 0.0,
+          "overall_score": 0.8917,
+          "failure_modes": [
+            "no_state_change"
+          ],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.16599999999999998,
+            "balance_score": 0.8340000000000001,
+            "depth": 0.6659999999999999,
+            "decisiveness": 1.0,
+            "agency": 1.0,
+            "coverage": 0.6111111111111112,
+            "avg_game_length": 21.917,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {},
+          "trigger_stats": {
+            "trigger_count": 263,
+            "triggered_matches": 12,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 0
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        },
+        {
+          "game_type": "card",
+          "decision": "accept",
+          "reason": "positive_relative_gain",
+          "relative_score": 0.047642457199569874,
+          "overall_score": 0.9316,
+          "failure_modes": [],
+          "absolute_metrics": {
+            "playability": 1.0,
+            "balance_gap": 0.12400000000000005,
+            "balance_score": 0.8759999999999999,
+            "depth": 0.813,
+            "decisiveness": 1.0,
+            "agency": 0.9345794392523364,
+            "coverage": 0.6,
+            "avg_game_length": 6.688,
+            "trigger_rate": 1.0
+          },
+          "delta_metrics": {
+            "delta_playability": 0.0,
+            "delta_balance_gap": -0.06399999999999995,
+            "delta_depth": 0.0009999999999998899,
+            "delta_decisiveness": 0.31200000000000006,
+            "delta_agency": 0.031924571995699313,
+            "delta_coverage": -0.09999999999999998
+          },
+          "trigger_stats": {
+            "trigger_count": 107,
+            "triggered_matches": 16,
+            "trigger_rate": 1.0,
+            "trigger_rate_by_match": 1.0,
+            "trigger_rate_by_turn": 1.0,
+            "state_changed_by_mechanic_count": 14
+          },
+          "integration": {
+            "schema_ok": true,
+            "syntax_ok": true,
+            "hook_ok": true,
+            "instantiation_ok": true,
+            "dry_run_ok": true,
+            "error_message": ""
+          }
+        }
+      ]
+    },
+    "per_game_results": [
+      {
+        "game_type": "board",
+        "decision": "discard",
+        "reason": "no_state_change",
+        "relative_score": 0.0,
+        "overall_score": 0.8917,
+        "failure_modes": [
+          "no_state_change"
+        ],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.16599999999999998,
+          "balance_score": 0.8340000000000001,
+          "depth": 0.6659999999999999,
+          "decisiveness": 1.0,
+          "agency": 1.0,
+          "coverage": 0.6111111111111112,
+          "avg_game_length": 21.917,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {},
+        "trigger_stats": {
+          "trigger_count": 263,
+          "triggered_matches": 12,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 0
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      },
+      {
+        "game_type": "card",
+        "decision": "accept",
+        "reason": "positive_relative_gain",
+        "relative_score": 0.047642457199569874,
+        "overall_score": 0.9316,
+        "failure_modes": [],
+        "absolute_metrics": {
+          "playability": 1.0,
+          "balance_gap": 0.12400000000000005,
+          "balance_score": 0.8759999999999999,
+          "depth": 0.813,
+          "decisiveness": 1.0,
+          "agency": 0.9345794392523364,
+          "coverage": 0.6,
+          "avg_game_length": 6.688,
+          "trigger_rate": 1.0
+        },
+        "delta_metrics": {
+          "delta_playability": 0.0,
+          "delta_balance_gap": -0.06399999999999995,
+          "delta_depth": 0.0009999999999998899,
+          "delta_decisiveness": 0.31200000000000006,
+          "delta_agency": 0.031924571995699313,
+          "delta_coverage": -0.09999999999999998
+        },
+        "trigger_stats": {
+          "trigger_count": 107,
+          "triggered_matches": 16,
+          "trigger_rate": 1.0,
+          "trigger_rate_by_match": 1.0,
+          "trigger_rate_by_turn": 1.0,
+          "state_changed_by_mechanic_count": 14
+        },
+        "integration": {
+          "schema_ok": true,
+          "syntax_ok": true,
+          "hook_ok": true,
+          "instantiation_ok": true,
+          "dry_run_ok": true,
+          "error_message": ""
+        }
+      }
+    ]
+  }
+]
