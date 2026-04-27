@@ -390,6 +390,7 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
         scores = playtest(mechanic, game_class=game_class)
     emitter.emit("playtest_result", {"scores": scores})
 
+    mechanic["_self_verification_report"] = get_last_runtime_report()
     with _suppress_stdout():
         decision, feedback = verify(mechanic, scores, already_revised)
     if decision == REVISE:
