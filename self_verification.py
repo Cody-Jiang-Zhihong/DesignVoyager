@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 from verification_metrics import (
     build_absolute_metric_dict,
@@ -8,8 +8,15 @@ from verification_metrics import (
     compute_overall_score,
     compute_relative_score,
     compute_trigger_rate,
+    summarize_cross_game_results,
 )
-from verification_schema import VerificationInput, VerificationOutput
+from verification_schema import (
+    CrossGameVerificationInput,
+    CrossGameVerificationOutput,
+    CrossGameVerificationRecord,
+    VerificationInput,
+    VerificationOutput,
+)
 
 
 ALLOWED_HOOKS = {
@@ -41,6 +48,15 @@ class SelfVerifier:
 
         # Retry policy
         self.max_retry_before_discard = 1
+
+        # Cross-game robustness thresholds
+        self.robust_min_tested_games = 2
+        self.robust_min_pass_rate = 0.70
+        self.robust_min_positive_rate = 0.70
+        self.robust_min_mean_relative_score = 0.02
+        self.robust_max_hard_failure_rate = 0.20
+        self.context_min_local_pass_rate = 0.50
+        self.repeated_hard_failure_min_count = 2
 
     def accept_threshold_for_stage(self, stage: int) -> float:
         """
@@ -306,4 +322,79 @@ class SelfVerifier:
                 "absolute_metrics": child_abs,
                 "parent_summary": verification_input.parent_summary,
             },
+        )
+
+    def classify_cross_game_robustness(
+        self,
+        results: Union[List[CrossGameVerificationRecord], CrossGameVerificationInput],
+    ) -> CrossGameVerificationOutput:
+        if isinstance(results, CrossGameVerificationInput):
+            records = results.records
+        else:
+            records = results
+
+        summary = summarize_cross_game_results(
+            records,
+            context_min_local_pass_rate=self.context_min_local_pass_rate,
+            repeated_hard_failure_min_count=self.repeated_hard_failure_min_count,
+        )
+
+        tested_games = summary["tested_games"]
+        pass_rate = summary["pass_rate"]
+        positive_rate = summary["positive_rate"]
+        mean_relative_score = summary["mean_relative_score"]
+        hard_failure_rate = summary["hard_failure_rate"]
+        compatible_game_types = summary["compatible_game_types"]
+        failed_game_types = summary["failed_game_types"]
+
+        is_robust = (
+            tested_games >= self.robust_min_tested_games
+            and pass_rate >= self.robust_min_pass_rate
+            and positive_rate >= self.robust_min_positive_rate
+            and mean_relative_score >= self.robust_min_mean_relative_score
+            and hard_failure_rate <= self.robust_max_hard_failure_rate
+        )
+
+        compatible_type_set = set(compatible_game_types)
+        failed_type_set = set(failed_game_types)
+        has_game_type_dependency = (
+            len(compatible_type_set) > 0
+            and len(failed_type_set - compatible_type_set) > 0
+        )
+
+        if tested_games <= 0:
+            robustness_label = "non_robust"
+            reason = "no_cross_game_results"
+        elif is_robust:
+            robustness_label = "robust"
+            reason = "mostly_positive_across_tested_games"
+        elif has_game_type_dependency:
+            robustness_label = "context_sensitive"
+            reason = "performance_depends_on_game_type"
+        else:
+            robustness_label = "non_robust"
+            reason = "insufficient_or_unstable_cross_game_performance"
+
+        metadata_for_library = {
+            "robustness_label": robustness_label,
+            "compatible_game_types": compatible_game_types,
+            "failed_game_types": failed_game_types,
+            "mean_relative_score": mean_relative_score,
+            "pass_rate": pass_rate,
+            "positive_rate": positive_rate,
+            "tested_games": tested_games,
+            "hard_failure_rate": hard_failure_rate,
+            "game_type_summaries": summary["game_type_summaries"],
+        }
+
+        return CrossGameVerificationOutput(
+            robustness_label=robustness_label,
+            reason=reason,
+            tested_games=tested_games,
+            pass_rate=pass_rate,
+            positive_rate=positive_rate,
+            mean_relative_score=mean_relative_score,
+            compatible_game_types=compatible_game_types,
+            failed_game_types=failed_game_types,
+            metadata_for_library=metadata_for_library,
         )

@@ -1,8 +1,29 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Any, Dict, List
 
-from verification_schema import DeltaMetrics, PlaytestMetrics, TriggerStats
+from verification_schema import (
+    CrossGameVerificationRecord,
+    DeltaMetrics,
+    PlaytestMetrics,
+    TriggerStats,
+    VerificationOutput,
+)
+
+
+HARD_CONSTRAINT_FAILURE_MODES = {
+    "schema_failure",
+    "syntax_failure",
+    "hook_failure",
+    "instantiation_failure",
+    "dry_run_failure",
+    "low_playability",
+    "extreme_imbalance",
+    "low_decisiveness",
+    "low_agency",
+    "no_trigger",
+    "no_state_change",
+}
 
 
 def compute_playability(metrics: PlaytestMetrics) -> float:
@@ -118,3 +139,116 @@ def compute_relative_score(parent: PlaytestMetrics, child: PlaytestMetrics, nove
         + 0.10 * d.delta_decisiveness
         + 0.10 * novelty_score
     )
+
+
+def is_hard_constraint_failure(output: VerificationOutput) -> bool:
+    return any(mode in HARD_CONSTRAINT_FAILURE_MODES for mode in output.failure_modes)
+
+
+def _mean(values: List[float]) -> float:
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
+
+
+def summarize_cross_game_results(
+    records: List[CrossGameVerificationRecord],
+    context_min_local_pass_rate: float = 0.50,
+    repeated_hard_failure_min_count: int = 2,
+) -> Dict[str, Any]:
+    """
+    Summarize several single-game verification outputs for robustness checks.
+    Classification remains in SelfVerifier so thresholds are easy to tune there.
+    """
+    tested_games = len(records)
+    if tested_games <= 0:
+        return {
+            "tested_games": 0,
+            "pass_rate": 0.0,
+            "positive_rate": 0.0,
+            "mean_relative_score": 0.0,
+            "hard_failure_rate": 0.0,
+            "compatible_game_types": [],
+            "failed_game_types": [],
+            "game_type_summaries": {},
+        }
+
+    relative_scores = [record.verification_output.relative_score for record in records]
+    hard_failure_flags = [
+        is_hard_constraint_failure(record.verification_output)
+        for record in records
+    ]
+    pass_flags = [
+        record.verification_output.decision == "accept" and not hard_failure
+        for record, hard_failure in zip(records, hard_failure_flags)
+    ]
+    positive_flags = [
+        record.verification_output.relative_score > 0 and not hard_failure
+        for record, hard_failure in zip(records, hard_failure_flags)
+    ]
+
+    by_game_type: Dict[str, List[CrossGameVerificationRecord]] = {}
+    for record in records:
+        by_game_type.setdefault(record.game_type, []).append(record)
+
+    game_type_summaries: Dict[str, Dict[str, Any]] = {}
+    compatible_game_types: List[str] = []
+    failed_game_types: List[str] = []
+
+    for game_type, game_records in by_game_type.items():
+        local_count = len(game_records)
+        local_scores = [
+            record.verification_output.relative_score
+            for record in game_records
+        ]
+        local_hard_failures = sum(
+            1 for record in game_records
+            if is_hard_constraint_failure(record.verification_output)
+        )
+        local_pass_count = sum(
+            1 for record in game_records
+            if (
+                record.verification_output.decision == "accept"
+                and not is_hard_constraint_failure(record.verification_output)
+            )
+        )
+        local_pass_rate = local_pass_count / local_count if local_count > 0 else 0.0
+        local_mean_relative_score = _mean(local_scores)
+        repeated_hard_failures = local_hard_failures >= repeated_hard_failure_min_count
+
+        is_positive_game_type = (
+            local_pass_rate >= context_min_local_pass_rate
+            and local_mean_relative_score > 0
+            and not repeated_hard_failures
+        )
+        is_failed_or_risky_game_type = (
+            local_pass_rate < context_min_local_pass_rate
+            or local_mean_relative_score <= 0
+            or repeated_hard_failures
+        )
+
+        if is_positive_game_type:
+            compatible_game_types.append(game_type)
+        if is_failed_or_risky_game_type:
+            failed_game_types.append(game_type)
+
+        game_type_summaries[game_type] = {
+            "tested_games": local_count,
+            "pass_rate": local_pass_rate,
+            "mean_relative_score": local_mean_relative_score,
+            "hard_failure_count": local_hard_failures,
+            "repeated_hard_failures": repeated_hard_failures,
+            "is_positive_game_type": is_positive_game_type,
+            "is_failed_or_risky_game_type": is_failed_or_risky_game_type,
+        }
+
+    return {
+        "tested_games": tested_games,
+        "pass_rate": sum(pass_flags) / tested_games,
+        "positive_rate": sum(positive_flags) / tested_games,
+        "mean_relative_score": _mean(relative_scores),
+        "hard_failure_rate": sum(hard_failure_flags) / tested_games,
+        "compatible_game_types": sorted(compatible_game_types),
+        "failed_game_types": sorted(failed_game_types),
+        "game_type_summaries": game_type_summaries,
+    }
