@@ -9,9 +9,15 @@ runtime report for self-verification integration.
 
 import copy
 import multiprocessing as mp
+import os
 import queue
+import sys
 
 import numpy as np
+
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+if PROJECT_DIR not in sys.path:
+    sys.path.insert(0, PROJECT_DIR)
 
 from base_game import BaseGame, PLAYER_1, PLAYER_2
 from card_game import CardGame
@@ -506,10 +512,13 @@ def _build_scores(child_metrics: dict) -> dict:
     playability = child_metrics["completed_matches"] / child_metrics["total_matches"] if child_metrics["total_matches"] else 0.0
     balance_gap = child_metrics["balance_gap"]
     depth = child_metrics["depth"]
-    aggregate = 0.5 * (1.0 - balance_gap) + 0.5 * max(depth, 0.0)
+    balance_score = (1.0 - balance_gap) if child_metrics["completed_matches"] > 0 else None
+    raw_quality = 0.5 * (balance_score if balance_score is not None else 0.0) + 0.5 * max(depth, 0.0)
+    aggregate = playability * raw_quality
     return {
         "playability": round(playability, 3),
         "balance_gap": round(balance_gap, 3),
+        "balance_score": round(balance_score, 3) if balance_score is not None else None,
         "depth": round(depth, 3),
         "aggregate": round(aggregate, 3),
     }

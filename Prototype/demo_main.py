@@ -27,11 +27,10 @@ from proposal_module import propose_mechanic
 from verification_module import ACCEPT, DISCARD, REVISE, MIN_PLAYABILITY, verify
 import discarded_library
 
-load_dotenv()
-
 console = Console()
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 
 GAME_REGISTRY = {
     "board": (

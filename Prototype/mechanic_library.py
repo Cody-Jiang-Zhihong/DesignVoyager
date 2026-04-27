@@ -31,7 +31,8 @@ import numpy as np
 from openai import OpenAI
 from dotenv import load_dotenv
 
-load_dotenv()
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 
 LIBRARY_FILE        = "library.json"
 EMBEDDING_MODEL     = "text-embedding-3-small"

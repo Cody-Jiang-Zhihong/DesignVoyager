@@ -241,7 +241,7 @@ function renderPlaytestResult(d) {
     if (spinner) spinner.remove();
 
     const s = d.scores;
-    const balance = Math.round((1 - s.balance_gap) * 1000) / 1000;
+    const balance = balanceScoreFromScores(s);
 
     const playGate = s.playability >= 1.0
         ? `<div class="playability-gate pass">Playability gate &#10003; passed</div>`
@@ -358,6 +358,16 @@ function renderError(d) {
 // ── Score bar helper ────────────────────────────────────────────────────────
 
 function scoreBar(label, value) {
+    if (value === null || value === undefined || Number.isNaN(value)) {
+        return `
+            <div class="score-row invalid">
+                <span class="score-label">${label}</span>
+                <div class="score-bar-container">
+                    <div class="score-bar-fill invalid" style="width:0%"></div>
+                </div>
+                <span class="score-value">N/A</span>
+            </div>`;
+    }
     const pct = Math.max(0, Math.min(100, value * 100));
     const color = value >= 0.75 ? 'green' : (value >= 0.5 ? 'yellow' : 'red');
     return `
@@ -1151,7 +1161,7 @@ const libraryManager = {
                 <span class="lib-card-chevron">&#9660;</span>
             </div>
             <div class="lib-card-scores">
-                ${scoreBar('Balance', 1 - (card.scores?.balance_gap ?? 1))}
+                ${scoreBar('Balance', balanceScoreFromScores(card.scores))}
                 ${scoreBar('Depth', card.scores?.depth ?? 0)}
                 <hr class="score-divider">
                 ${scoreBar('Aggregate', card.scores?.aggregate ?? 0)}
@@ -1176,7 +1186,7 @@ const libraryManager = {
                 </div>
                 <div class="lib-quality-line">
                     <span class="lib-quality-title">${escapeHtml(card.meta.qualityLabel)}</span>
-                    <span class="lib-quality-copy">Balance ${formatScore(1 - (card.scores?.balance_gap ?? 1))} · Depth ${formatScore(card.scores?.depth ?? 0)} · Aggregate ${formatScore(card.scores?.aggregate ?? 0)}</span>
+                    <span class="lib-quality-copy">Balance ${formatNullableScore(balanceScoreFromScores(card.scores))} · Depth ${formatScore(card.scores?.depth ?? 0)} · Aggregate ${formatScore(card.scores?.aggregate ?? 0)}</span>
                 </div>
                 <div class="lib-card-desc">${escapeHtml(card.description || '')}</div>
                 <div class="lib-card-tutorial">
@@ -1576,7 +1586,7 @@ function classifyMechanic(card) {
         [['threshold', 'parity', 'hand'], 'Conditional Planning'],
     ], 'Direct Interaction');
 
-    const balance = 1 - (card.scores?.balance_gap ?? 1);
+    const balance = balanceScoreFromScores(card.scores) ?? 0;
     const depth = card.scores?.depth ?? 0;
     const aggregate = card.scores?.aggregate ?? 0;
 
@@ -1626,6 +1636,20 @@ function formatScore(value) {
     return Number(value || 0).toFixed(2);
 }
 
+function formatNullableScore(value) {
+    return value === null || value === undefined || Number.isNaN(value)
+        ? 'N/A'
+        : Number(value).toFixed(2);
+}
+
+function balanceScoreFromScores(scores) {
+    if (!scores) return null;
+    if (scores.balance_score !== undefined) return scores.balance_score;
+    if ((scores.playability ?? 1) <= 0) return null;
+    if (scores.balance_gap === undefined || scores.balance_gap === null) return null;
+    return Math.round((1 - scores.balance_gap) * 1000) / 1000;
+}
+
 function summarizeBy(cards, keyFn) {
     const groups = new Map();
     cards.forEach(card => {
@@ -1644,7 +1668,7 @@ function toMetricSummary(group) {
     return {
         label: group.label,
         count: group.cards.length,
-        avgBalance: average(group.cards.map(card => 1 - (card.scores?.balance_gap ?? 1))),
+        avgBalance: average(group.cards.map(card => balanceScoreFromScores(card.scores)).filter(value => value !== null && value !== undefined && !Number.isNaN(value))),
         avgDepth: average(group.cards.map(card => card.scores?.depth ?? 0)),
         avgAggregate: average(group.cards.map(card => card.scores?.aggregate ?? 0)),
         robustCount,

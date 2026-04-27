@@ -15,7 +15,8 @@ from typing import Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 
 API_KEY = os.getenv("OPENAI_API_KEY", "PLEASE_SET_KEY")
 BASE_URL = os.getenv("OPENAI_BASE_URL", None)
