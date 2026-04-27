@@ -1549,7 +1549,27 @@
       -0.0161590576171875,
       0.00397491455078125,
       -0.0088653564453125
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "adjacent_flip_on_placement",
@@ -3101,7 +3121,27 @@
       -0.0307464599609375,
       0.004138946533203125,
       -0.0009427070617675781
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "diagonal_shield_on_placement",
@@ -4653,7 +4693,27 @@
       -0.022186279296875,
       -0.01351165771484375,
       -0.005458831787109375
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "line_control_bonus_on_placement",
@@ -6205,7 +6265,27 @@
       -0.026123046875,
       0.0096588134765625,
       0.0030651092529296875
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "diagonal_lock_bonus_on_placement",
@@ -7757,7 +7837,27 @@
       -0.0012521743774414062,
       0.005069732666015625,
       0.0028533935546875
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "diagonal_block_bonus_on_placement",
@@ -9309,7 +9409,27 @@
       -0.0275115966796875,
       -0.0092315673828125,
       0.002101898193359375
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "center_control_streak_bonus",
@@ -10861,7 +10981,27 @@
       -0.037384033203125,
       -0.0002722740173339844,
       0.0264434814453125
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "line_potential_quadrant_bonus",
@@ -12413,7 +12553,27 @@
       -0.03875732421875,
       0.01849365234375,
       0.0006527900695800781
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "single_use_shield_block",
@@ -13965,7 +14125,27 @@
       -0.022186279296875,
       -0.012786865234375,
       0.01027679443359375
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "single_use_teleport_swap",
@@ -15517,7 +15697,27 @@
       0.0013666152954101562,
       -0.02423095703125,
       0.00850677490234375
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "adjacent_capture_token_on_placement",
@@ -17069,7 +17269,27 @@
       -0.0161285400390625,
       -0.00061798095703125,
       -0.0008769035339355469
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "adjacent_capture_with_one_harpoon",
@@ -18621,7 +18841,27 @@
       -0.0243072509765625,
       -0.0033359527587890625,
       -0.018829345703125
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "limited_blink_swap_resource",
@@ -20173,7 +20413,27 @@
       -0.033050537109375,
       -0.031219482421875,
       0.01302337646484375
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "block_and_stun_opportunity_bonus",
@@ -21725,7 +21985,27 @@
       -0.025115966796875,
       -0.0165557861328125,
       0.004169464111328125
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "diagonal_grab_on_placement",
@@ -23277,7 +23557,27 @@
       -0.0224761962890625,
       -0.001155853271484375,
       -0.0029354095458984375
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "diagonal_flip_on_placement",
@@ -24829,7 +25129,27 @@
       -0.006443023681640625,
       -0.00992584228515625,
       0.005077362060546875
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "adjacent_flip_on_placement",
@@ -26381,7 +26701,27 @@
       -0.017547607421875,
       -0.0008525848388671875,
       -0.0006794929504394531
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "freeze_adjacent_on_placement",
@@ -27933,7 +28273,27 @@
       -0.02630615234375,
       0.00274658203125,
       0.00377655029296875
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "adjacent_capture_bonus_on_placement",
@@ -29485,7 +29845,27 @@
       -0.025665283203125,
       0.01190948486328125,
       0.0020542144775390625
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "adjacent_capture_score_on_placement",
@@ -31037,7 +31417,27 @@
       -0.01323699951171875,
       0.01282501220703125,
       0.01374053955078125
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "adjacent_flip_bonus_score_on_placement",
@@ -32589,7 +32989,27 @@
       -0.0286865234375,
       0.023345947265625,
       0.003643035888671875
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "line_blocker_on_placement",
@@ -34141,6 +34561,26 @@
       -0.02618408203125,
       -0.0174560546875,
       0.002605438232421875
-    ]
+    ],
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   }
 ]

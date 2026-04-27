@@ -307,6 +307,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
             advanced = curriculum.on_accept()
             accepted_count += 1
             added = False
+            mechanic["_game_type"] = game_name
             with _suppress_stdout():
                 added = library.add(mechanic, scores, iteration=iteration)
             if added:
@@ -315,6 +316,8 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
                     "mechanic_name": mechanic.get("mechanic_name", ""),
                     "description": mechanic.get("description", ""),
                     "scores": scores,
+                    "verification": mechanic.get("_verification_output", {}),
+                    "robustness": mechanic.get("_cross_game_verification", {}),
                     "replay": replay_data,
                     "iteration": iteration,
                     "runtime_report": get_last_runtime_report(),

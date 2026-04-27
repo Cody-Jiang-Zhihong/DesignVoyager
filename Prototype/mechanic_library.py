@@ -9,6 +9,8 @@ JSON file (library.json) so they survive between runs.
 Each mechanic is stored with:
   - mechanic_name, mechanic_type, description, justification, python_code
   - scores: playability, balance, depth, aggregate (from playtesting)
+  - verification: structured self-verification output for accepted runs
+  - robustness: cross-game robustness label and compatibility metadata
   - iteration: which loop iteration it was accepted on
   - embedding: OpenAI vector for semantic retrieval (text-embedding-3-small)
 
@@ -24,6 +26,7 @@ retrieve(k, query=None)
 
 import json
 import os
+import copy
 import numpy as np
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -38,6 +41,17 @@ SCORE_THRESHOLD     = 0.25  # minimum combined score for a mechanic to be recall
 DIVERSITY_PENALTY   = 0.75    # penalty multiplier for mechanics with already-selected types
 SIMILARITY_THRESHOLD = 0.85   # max allowed similarity when adding new mechanic to library
 MAX_CONTEXT_USES    = 3     # a mechanic can appear as context at most this many times per run
+
+DEFAULT_ROBUSTNESS = {
+    "label": "untested",
+    "compatible_game_types": [],
+    "failed_game_types": [],
+    "tested_games": 0,
+    "pass_rate": None,
+    "positive_rate": None,
+    "mean_relative_score": None,
+    "hard_failure_rate": None,
+}
 
 _client = OpenAI(
     api_key  = os.getenv("OPENAI_API_KEY", ""),
@@ -79,6 +93,52 @@ def _mechanic_text(m: dict) -> str:
         f"{m.get('description', '')} "
         f"{m.get('justification', '')}"
     )
+
+
+def _build_verification_metadata(mechanic: dict) -> dict:
+    output = copy.deepcopy(mechanic.get("_verification_output") or {})
+    if not output:
+        return {
+            "decision": "accept",
+            "reason": "legacy_accept",
+            "relative_score": None,
+            "overall_score": None,
+            "failure_modes": [],
+            "absolute_metrics": {},
+            "delta_metrics": {},
+            "trigger_stats": {},
+        }
+
+    return {
+        "decision": output.get("decision", "accept"),
+        "reason": output.get("reason", ""),
+        "relative_score": output.get("relative_score"),
+        "overall_score": output.get("overall_score"),
+        "failure_modes": output.get("failure_modes", []),
+        "absolute_metrics": output.get("absolute_metrics", {}),
+        "delta_metrics": output.get("delta_metrics", {}),
+        "trigger_stats": output.get("trigger_stats", {}),
+        "metadata_for_library": output.get("metadata_for_library", {}),
+    }
+
+
+def _build_robustness_metadata(mechanic: dict) -> dict:
+    raw = copy.deepcopy(mechanic.get("_cross_game_verification") or {})
+    if not raw:
+        return copy.deepcopy(DEFAULT_ROBUSTNESS)
+
+    metadata = raw.get("metadata_for_library", raw)
+    return {
+        "label": metadata.get("robustness_label", raw.get("robustness_label", "untested")),
+        "compatible_game_types": metadata.get("compatible_game_types", raw.get("compatible_game_types", [])),
+        "failed_game_types": metadata.get("failed_game_types", raw.get("failed_game_types", [])),
+        "tested_games": metadata.get("tested_games", raw.get("tested_games", 0)),
+        "pass_rate": metadata.get("pass_rate", raw.get("pass_rate")),
+        "positive_rate": metadata.get("positive_rate", raw.get("positive_rate")),
+        "mean_relative_score": metadata.get("mean_relative_score", raw.get("mean_relative_score")),
+        "hard_failure_rate": metadata.get("hard_failure_rate", raw.get("hard_failure_rate")),
+        "game_type_summaries": metadata.get("game_type_summaries", {}),
+    }
 
 
 # ── Library class ─────────────────────────────────────────────────────────────
@@ -145,14 +205,23 @@ class MechanicLibrary:
             print(f"[Library] Rejected mechanic '{mechanic_name}': "
                   f"too similar to '{similar_entry['mechanic_name']}' (similarity: {similarity:.3f})")
             return False
+
+        verification = _build_verification_metadata(mechanic)
+        if verification.get("decision") != "accept":
+            print(f"[Library] Rejected mechanic '{mechanic_name}': "
+                  f"verification decision is '{verification.get('decision')}'")
+            return False
         
         entry = {
             "mechanic_name": mechanic_name,
             "mechanic_type": mechanic.get("mechanic_type", "other"),
+            "game_type":     mechanic.get("_game_type", mechanic.get("game_type", "")),
             "description":   mechanic.get("description", ""),
             "justification": mechanic.get("justification", ""),
             "python_code":   mechanic.get("python_code", ""),
             "scores":        scores,
+            "verification":  verification,
+            "robustness":    _build_robustness_metadata(mechanic),
             "iteration":     iteration,
             "embedding":     new_embedding,
         }

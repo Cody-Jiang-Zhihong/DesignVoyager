@@ -1549,7 +1549,28 @@
       0.003803253173828125,
       0.0357666015625,
       9.083747863769531e-05
-    ]
+    ],
+    "game_type": "card",
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "threshold_sabotage_reflection",
@@ -3101,7 +3122,28 @@
       0.0236358642578125,
       -0.0109100341796875,
       0.004302978515625
-    ]
+    ],
+    "game_type": "card",
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "safe_exact_12_block",
@@ -4653,7 +4695,28 @@
       0.021270751953125,
       -0.0128021240234375,
       0.01183319091796875
-    ]
+    ],
+    "game_type": "card",
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "ace_of_choice_lockstep",
@@ -6205,7 +6268,28 @@
       -0.01323699951171875,
       0.0019054412841796875,
       0.0244598388671875
-    ]
+    ],
+    "game_type": "card",
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "nearby_swap_on_6",
@@ -7757,7 +7841,28 @@
       0.01427459716796875,
       -0.005832672119140625,
       0.018218994140625
-    ]
+    ],
+    "game_type": "card",
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   },
   {
     "mechanic_name": "corner_guard_on_1",
@@ -9309,6 +9414,27 @@
       -0.008636474609375,
       -0.00955963134765625,
       0.01279449462890625
-    ]
+    ],
+    "game_type": "card",
+    "verification": {
+      "decision": "accept",
+      "reason": "legacy_accept",
+      "relative_score": null,
+      "overall_score": null,
+      "failure_modes": [],
+      "absolute_metrics": {},
+      "delta_metrics": {},
+      "trigger_stats": {}
+    },
+    "robustness": {
+      "label": "untested",
+      "compatible_game_types": [],
+      "failed_game_types": [],
+      "tested_games": 0,
+      "pass_rate": null,
+      "positive_rate": null,
+      "mean_relative_score": null,
+      "hard_failure_rate": null
+    }
   }
 ]

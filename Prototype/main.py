@@ -177,6 +177,7 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
 
         if outcome == ACCEPT:
             scores = _get_scores()
+            mechanic["_game_type"] = game_name
             added = library.add(mechanic, scores, iteration=iteration)
             advanced = curriculum.on_accept()
             accepted_count += 1
