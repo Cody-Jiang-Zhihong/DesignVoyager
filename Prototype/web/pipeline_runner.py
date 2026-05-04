@@ -139,6 +139,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
                 user_prompt=user_prompt,
                 state_description=state_desc,
                 banned_names=all_banned,
+                game_name=game_name,
             )
 
         if mechanic is None:
@@ -194,6 +195,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
                     state_description=state_desc,
                     banned_names=all_banned,
                     is_revision=True,
+                    game_name=game_name,
                 )
 
             if revised is None:
@@ -268,6 +270,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
                     state_description=state_desc,
                     banned_names=all_banned,
                     is_revision=True,
+                    game_name=game_name,
                 )
 
             if revised is None:

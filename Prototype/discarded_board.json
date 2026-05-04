@@ -6,5 +6,6 @@
   "adjacent_piece_push_if_open",
   "single_adjacent_block_on_placement_symmetric",
   "adjacent_opponent_deny_on_placement",
-  "adjacent_flip_only_if_surrounded_on_placement"
+  "adjacent_flip_only_if_surrounded_on_placement",
+  "resource_once_per_game_directional_swap"
 ]

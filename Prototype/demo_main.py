@@ -184,6 +184,7 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
                     user_prompt=user_prompt,
                     state_description=state_desc,
                     banned_names=list(set(banned_names) | tried_this_run),
+                    game_name=game_name,
                 )
 
         if mechanic is None:
@@ -220,6 +221,7 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
                         state_description=state_desc,
                         banned_names=list(set(banned_names) | tried_this_run),
                         is_revision=True,
+                        game_name=game_name,
                     )
             if revised is None:
                 print_verdict(DISCARD, mechanic["mechanic_name"])
@@ -280,6 +282,7 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = "board", us
                         state_description=state_desc,
                         banned_names=list(set(banned_names) | tried_this_run),
                         is_revision=True,
+                        game_name=game_name,
                     )
 
             if revised is None:

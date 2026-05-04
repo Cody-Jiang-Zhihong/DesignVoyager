@@ -1550,7 +1550,8 @@ function buildLibraryAnalyticsHtml(analytics) {
 
 function classifyMechanic(card) {
     const text = `${card.mechanic_name || ''} ${card.description || ''}`.toLowerCase();
-    const effectFamily = matchFirst(text, [
+    const typeDrivenFamily = familyFromMechanicType(card.mechanic_type);
+    const keywordFamily = matchFirst(text, [
         [['extra turn', 'lockstep', 'pause', 'tempo'], 'Tempo / Turn Control'],
         [['capture', 'remove', 'blast', 'destroy'], 'Capture / Removal'],
         [['flip', 'mirror'], 'Flip / Conversion'],
@@ -1561,6 +1562,7 @@ function classifyMechanic(card) {
         [['parity', 'threshold', 'hand', 'choice'], 'Hand / Conditional Rule'],
         [['link', 'combo', 'synergy', 'line'], 'Combo / Synergy'],
     ], 'Board Interaction');
+    const effectFamily = typeDrivenFamily || keywordFamily;
 
     const timing = matchFirst(text, [
         [['on capture', 'capture'], 'On Capture'],
@@ -1625,6 +1627,21 @@ function matchFirst(text, rules, fallback) {
         if (keywords.some(keyword => text.includes(keyword))) return label;
     }
     return fallback;
+}
+
+function familyFromMechanicType(mechanicType) {
+    const t = String(mechanicType || '').trim().toLowerCase();
+    const validTypes = new Set([
+        'movement',
+        'resource',
+        'exception',
+        'termination',
+        'combo',
+        'hand',
+        'tempo',
+    ]);
+    if (!validTypes.has(t)) return '';
+    return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
 function average(values) {

@@ -42,7 +42,7 @@ GAME_REGISTRY = {
 DEFAULT_ITERATIONS = 1
 DEFAULT_TOP_K = 3
 DEFAULT_GAME = "board"
-DEFAULT_USER_PROMPT = "I want a score-based mechanic."
+DEFAULT_USER_PROMPT = "I want resource mechanics."
 
 _last_scores: dict = {}
 _last_runtime_report: dict = {}
@@ -93,6 +93,7 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
             user_prompt=user_prompt,
             state_description=state_desc,
             banned_names=list(set(banned_names) | tried_this_run),
+            game_name=game_name,
         )
         if mechanic is None:
             print("[Loop] Proposal failed - skipping this iteration.\n")
@@ -113,6 +114,7 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
                 user_prompt,
                 state_description=state_desc,
                 banned_names=list(set(banned_names) | tried_this_run),
+                game_name=game_name,
             )
             if revised_mechanic is None:
                 print("[Loop] Revision failed - discarding.\n")
@@ -154,6 +156,7 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
                 user_prompt,
                 state_description=state_desc,
                 banned_names=list(set(banned_names) | tried_this_run),
+                game_name=game_name,
             )
             if revised_mechanic is None:
                 print("[Loop] Revision failed - discarding.\n")
@@ -370,7 +373,7 @@ def _save_runtime_report(report: dict, game_name: str, mechanic_name: str, itera
 
 def _revise(original_mechanic: dict, game_skeleton: str, retrieved: list,
             stage_prompt: str = "", user_prompt: str = "", state_description: str = None,
-            banned_names: list = None):
+            banned_names: list = None, game_name: str = DEFAULT_GAME):
     feedback = original_mechanic.get("_revision_feedback", "Please improve this mechanic.")
     name = original_mechanic.get("mechanic_name", "unknown")
 
@@ -395,6 +398,7 @@ def _revise(original_mechanic: dict, game_skeleton: str, retrieved: list,
         state_description=state_description,
         banned_names=banned_names,
         is_revision=True,
+        game_name=game_name,
     )
 
 
