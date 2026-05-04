@@ -25,20 +25,16 @@ import copy
 import json
 import signal
 import concurrent.futures
-import os
 import numpy as np
 from base_game import BaseGame
 from compile_check import load_mechanic_fn
 from verification_schema import PlaytestMetrics, TriggerStats
 
 # How many games to run per measurement
-N_GAMES_BALANCE = int(os.getenv("DV_N_GAMES_BALANCE", "20"))   # equal MCTS vs equal MCTS
-N_GAMES_DEPTH   = int(os.getenv("DV_N_GAMES_DEPTH", "12"))     # strong vs weak MCTS
+N_GAMES_BALANCE = 60   # equal MCTS vs equal MCTS, for playability + balance
+N_GAMES_DEPTH   = 40   # strong (50 sims) vs weak (10 sims) MCTS, for depth
 MAX_TURNS       = 100  # safety cap per game
 GAME_TIMEOUT    = 10   # wall-clock seconds per game (int required by signal.alarm)
-BALANCE_SIMS    = int(os.getenv("DV_BALANCE_SIMS", "12"))
-DEPTH_STRONG_SIMS = int(os.getenv("DV_DEPTH_STRONG_SIMS", "24"))
-DEPTH_WEAK_SIMS   = int(os.getenv("DV_DEPTH_WEAK_SIMS", "6"))
 
 
 # ── Trigger tracking ──────────────────────────────────────────────────────────
@@ -265,8 +261,7 @@ def _board_cell_count(game_class) -> int:
 
 
 def _run_balance_phase(mechanic_fn, game_class, use_signal, tracker,
-                       progress_cb=None, phase_label="balance",
-                       stop_event=None):
+                       progress_cb=None, phase_label="balance"):
     """Run N_GAMES_BALANCE games of equal-strength MCTS. Returns running totals.
 
     progress_cb(phase, completed, total) is called every game so the UI can
@@ -279,10 +274,8 @@ def _run_balance_phase(mechanic_fn, game_class, use_signal, tracker,
         "legal_actions_sum": 0, "covered_cells": set(),
     }
     for i in range(N_GAMES_BALANCE):
-        if stop_event is not None and stop_event.is_set():
-            break
-        a1 = game_class.make_mcts_agent(simulations=BALANCE_SIMS)
-        a2 = game_class.make_mcts_agent(simulations=BALANCE_SIMS)
+        a1 = game_class.make_mcts_agent(simulations=20)
+        a2 = game_class.make_mcts_agent(simulations=20)
         if tracker is not None:
             tracker.begin_match()
         gstats = _run_game_with_stats_safe(mechanic_fn, a1, a2,
@@ -301,8 +294,7 @@ def _run_balance_phase(mechanic_fn, game_class, use_signal, tracker,
 
 
 def _run_depth_phase(mechanic_fn, game_class, use_signal, tracker,
-                     progress_cb=None, phase_label="depth",
-                     stop_event=None):
+                     progress_cb=None, phase_label="depth"):
     """
     Run N_GAMES_DEPTH games: strong (50 sims) vs weak (10 sims), alternating
     seats. Returns running totals plus strong/weak win counts.
@@ -314,10 +306,8 @@ def _run_depth_phase(mechanic_fn, game_class, use_signal, tracker,
         "legal_actions_sum": 0, "covered_cells": set(),
     }
     for i in range(N_GAMES_DEPTH):
-        if stop_event is not None and stop_event.is_set():
-            break
-        strong = game_class.make_mcts_agent(simulations=DEPTH_STRONG_SIMS)
-        weak   = game_class.make_mcts_agent(simulations=DEPTH_WEAK_SIMS)
+        strong = game_class.make_mcts_agent(simulations=50)
+        weak   = game_class.make_mcts_agent(simulations=10)
         if i % 2 == 0:
             a1, a2 = strong, weak
             strong_player = 1
@@ -399,8 +389,7 @@ def _simple_scores_from_metrics(metrics: PlaytestMetrics) -> dict:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def run_baseline(game_class=None, use_signal=True, progress_cb=None,
-                 stop_event=None) -> PlaytestMetrics:
+def run_baseline(game_class=None, use_signal=True, progress_cb=None) -> PlaytestMetrics:
     """
     Run a baseline playtest with NO mechanic. The resulting PlaytestMetrics
     object is the parent metrics that SelfVerifier compares mechanic runs
@@ -411,16 +400,14 @@ def run_baseline(game_class=None, use_signal=True, progress_cb=None,
     """
     game_class = game_class or BaseGame
     bal = _run_balance_phase(None, game_class, use_signal, tracker=None,
-                             progress_cb=progress_cb, phase_label="balance",
-                             stop_event=stop_event)
+                             progress_cb=progress_cb, phase_label="balance")
     dep = _run_depth_phase(None, game_class, use_signal, tracker=None,
-                           progress_cb=progress_cb, phase_label="depth",
-                           stop_event=stop_event)
+                           progress_cb=progress_cb, phase_label="depth")
     return _build_metrics(bal, dep, _board_cell_count(game_class))
 
 
 def run_playtest_full(mechanic: dict, game_class=None, use_signal=True,
-                      progress_cb=None, stop_event=None) -> tuple:
+                      progress_cb=None) -> tuple:
     """
     Full delta-gated playtest. Runs balance + depth phases with the mechanic
     and tracks trigger stats.
@@ -442,11 +429,9 @@ def run_playtest_full(mechanic: dict, game_class=None, use_signal=True,
     fn      = _wrap_mechanic_with_tracker(raw_fn, tracker)
 
     bal = _run_balance_phase(fn, game_class, use_signal, tracker=tracker,
-                             progress_cb=progress_cb, phase_label="balance",
-                             stop_event=stop_event)
+                             progress_cb=progress_cb, phase_label="balance")
     dep = _run_depth_phase(fn, game_class, use_signal, tracker=tracker,
-                           progress_cb=progress_cb, phase_label="depth",
-                           stop_event=stop_event)
+                           progress_cb=progress_cb, phase_label="depth")
     metrics = _build_metrics(bal, dep, _board_cell_count(game_class))
 
     total_matches = bal["total_matches"] + dep["total_matches"]

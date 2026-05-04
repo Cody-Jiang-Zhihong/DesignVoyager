@@ -130,63 +130,20 @@ async def phone_info():
 @app.get("/api/library-cards")
 async def get_library_cards():
     """
-    Return the merged accepted mechanic library across both games.
-
-    Source of truth:
-      - `library.json` for board mechanics
-      - `library_card.json` for card mechanics
-
-    Replay augmentation:
-      - `library_cards.json` is treated as a legacy/lightweight cache that may
-        contain replay snapshots for a subset of mechanics. When names match,
-        its replay payload is merged into the full mechanic record.
+    Return all accepted mechanic cards saved by previous runs.
+    Each card contains mechanic name, description, scores, and replay data
+    sufficient to render the library browser and nano tutorial animation.
     """
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-    def _load_list(fname: str) -> list:
-        path = os.path.join(project_root, fname)
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return data if isinstance(data, list) else []
-        except (FileNotFoundError, json.JSONDecodeError, OSError):
-            return []
-
-    merged = []
-    replay_lookup = {}
-
-    for card in _load_list("library_cards.json"):
-        if not isinstance(card, dict):
-            continue
-        key = (card.get("game_type"), card.get("mechanic_name"))
-        replay_lookup[key] = card
-
-    for fname, default_game in (("library.json", "board"), ("library_card.json", "card")):
-        for card in _load_list(fname):
-            if not isinstance(card, dict):
-                continue
-            card = dict(card)
-            card.setdefault("game_type", default_game)
-            key = (card.get("game_type"), card.get("mechanic_name"))
-            replay_src = replay_lookup.get(key)
-            if replay_src:
-                for k in ("replay", "scores", "iteration"):
-                    if k not in card and k in replay_src:
-                        card[k] = replay_src[k]
-            merged.append(card)
-
-    # Fallback for older setups that only have library_cards.json.
-    if not merged:
-        merged = [c for c in _load_list("library_cards.json") if isinstance(c, dict)]
-
-    merged.sort(
-        key=lambda c: (
-            -float((c.get("scores") or {}).get("aggregate", 0) or 0),
-            str(c.get("game_type") or ""),
-            str(c.get("mechanic_name") or ""),
-        )
+    cards_file = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "library_cards.json",
     )
-    return JSONResponse(content=merged)
+    try:
+        with open(cards_file, "r") as f:
+            cards = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        cards = []
+    return JSONResponse(content=cards)
 
 
 # Per-game library files. Mirrors GAME_REGISTRY in main.py / pipeline_runner.py.

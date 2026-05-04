@@ -1,129 +1,95 @@
-# Prototype
+# DesignVoyager
 
-This is the active DesignVoyager prototype.
+An autonomous game mechanic designer. DesignVoyager uses a large language model to propose new board game mechanics as Python code, then evaluates them through automated playtesting — keeping the good ones and discarding the rest.
 
-## What It Supports
+---
 
-- `board` game mode via `base_game.py`
-- `card` game mode via `card_game.py`
-- MCTS-based playtesting
-- Cross-platform subprocess-based game execution for Windows and macOS
-- FastAPI dashboard with live pipeline logs, mechanic tutorials, replay, and library browsing
-- Runtime self-verification reports
-- Discarded-mechanic memory to reduce duplicate or previously failed proposals
-- Accepted-only library registration with duplicate filtering
+## How it works
 
-## Main Files
+Each iteration of the loop does five things:
 
-- `main.py`: main loop
-- `demo_main.py`: presentation-friendly terminal runner
-- `playtest_module.py`: automated playtesting, MCTS evaluation, runtime report generation
-- `mechanic_library.py`: accepted mechanic library with semantic retrieval and duplicate filtering
-- `discarded_library.py`: persistent memory of discarded mechanic names
-- `game_interface.py`: shared game contract
-- `web/app.py`: dashboard server
-- `web/pipeline_runner.py`: dashboard pipeline adapter
-- `self_verification_sample.json`: schema example for self-verification integration
-- `runtime_reports/`: generated JSON reports from actual runs
-- `board_experiment_record_and_report.md`: sample board experiment write-up
-- `card_experiment_record_and_report.md`: sample card experiment write-up
-- `latest_combined_experiment_report.md`: latest combined board/card experiment results
-- `card_metric_review.md`: card playtest metric review and calibration notes
+1. **Retrieve** — pull the most relevant mechanics from the library as context for the model
+2. **Propose** — ask Gemini to write a new mechanic as a Python function
+3. **Compile** — check that the code runs without errors
+4. **Playtest** — run 200+ simulated games to measure balance and strategic depth
+5. **Verify** — accept, revise, or discard based on the scores
+
+Accepted mechanics are added to a library and used as context for future proposals. The system also runs a **curriculum** that starts with simple single-rule mechanics and gradually unlocks more complex ones as the library grows.
+
+---
+
+## Modules
+
+| File | Owner | What it does |
+|---|---|---|
+| `proposal_module.py` | Morgan | Prompts Gemini to propose a mechanic; repairs broken code up to 3× |
+| `mechanic_library.py` | Benjamin / Ziyi | Stores accepted mechanics; retrieves similar ones via embedding search |
+| `playtest_module.py` | Cody | Runs simulated games; measures balance and strategic depth |
+| `verification_module.py` | Cody | Decides accept / revise / discard based on playtest scores |
+| `curriculum.py` | Morgan | Tracks complexity stage; advances after 3 consecutive accepts |
+| `base_game.py` | — | Defines the base 6×6 board game and agents |
+| `compile_check.py` | — | Checks that a mechanic's Python code is valid before playtesting |
+| `main.py` | — | Runs the full loop |
+
+---
+
+## Setup
+
+### 1. Install dependencies
+
+```bash
+pip3 install -r requirements.txt
+```
+
+### 2. Authenticate with Google Cloud (Vertex AI)
+
+This project uses Gemini via Vertex AI. You need the `gcloud` CLI installed and a Google Cloud project with Vertex AI enabled.
+
+```bash
+gcloud auth application-default login
+```
+
+Set your project:
+
+```bash
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+```
+
+> No API key needed — authentication is handled automatically via Application Default Credentials.
+
+---
 
 ## Running
 
-Install dependencies:
-
+**Basic run (3 iterations):**
 ```bash
-python -m pip install -r Prototype/requirements.txt
+python3 main.py
 ```
 
-Run board mode:
-
+**Custom run:**
 ```bash
-python Prototype/main.py --game board
+python3 main.py --iterations 50 --top-k 3
 ```
 
-Run card mode:
-
+**Clear the mechanic library:**
 ```bash
-python Prototype/main.py --game card
+python3 -c "from mechanic_library import MechanicLibrary; MechanicLibrary().clear()"
 ```
 
-Run demo mode:
+---
 
-```bash
-python Prototype/demo_main.py --game board
-python Prototype/demo_main.py --game card
-```
+## Evaluation scores
 
-Run the web dashboard:
+Each mechanic is scored on:
 
-```bash
-cd Prototype
-python -m uvicorn web.app:app --reload --port 8000
-```
+- **Compile check** — does the code parse and run without errors?
+- **Playability** — do games complete without crashing or looping?
+- **Balance** — do both players win roughly 50% of the time?
+- **Depth** — does a smarter player (GreedyAgent) consistently beat a random one?
+- **Aggregate** — weighted combination of balance and depth (threshold for acceptance)
 
-Then open:
+---
 
-```text
-http://localhost:8000
-```
+## Related work
 
-The dashboard now uses the same accepted libraries as the CLI:
-
-- `Prototype/library.json` for board mechanics
-- `Prototype/library_card.json` for card mechanics
-
-`Prototype/library_cards.json` is only used to store dashboard replay/tutorial metadata.
-
-## Experiment Outputs
-
-Runtime reports are written to:
-
-- `Prototype/runtime_reports/`
-
-Each run produces a structured JSON file containing:
-
-- mechanic metadata
-- integration report
-- parent metrics
-- child metrics
-- trigger stats
-- derived scores
-
-Discarded mechanic names are stored separately as:
-
-- `discarded_board.json`
-- `discarded_card.json`
-
-These files are used by the proposal module to avoid re-proposing known-bad
-or already discarded mechanic names in later runs.
-
-Accepted mechanic libraries are stored as:
-
-- `library.json`
-- `library_card.json`
-
-Only mechanics that are both:
-
-- accepted by verification
-- not rejected by duplicate filtering
-
-are actually registered into these libraries.
-
-Latest experiment/reference documents:
-
-- `board_experiment_record_and_report.md`
-- `card_experiment_record_and_report.md`
-- `latest_combined_experiment_report.md`
-- `card_metric_review.md`
-
-## Notes
-
-- Board and card playtests both use MCTS.
-- The proposal module avoids library duplicates and previously discarded names when possible.
-- Card mode now uses symmetric initial hands and card-specific playtest budgets to reduce metric noise.
-- Dashboard library cards are merged from accepted library entries plus optional replay metadata.
-- `self_verification_sample.json` is the schema reference.
-- `latest_combined_experiment_report.md` is the newest consolidated run summary.
+This project is inspired by [MORTAR](https://arxiv.org/abs/2601.00105) (Nasir et al., 2025), which evolves game mechanics using a quality-diversity algorithm, and [GAVEL](https://arxiv.org/abs/2407.09388) (Todd et al., NeurIPS 2024), which generates complete games in the Ludii game description language. DesignVoyager differs by using a curriculum and retrieval-based context instead of evolutionary search.

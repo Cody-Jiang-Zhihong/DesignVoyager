@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DesignVoyager Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260504-library-restore">
+    <link rel="stylesheet" href="/static/style.css?v=20260428-03">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -120,11 +120,25 @@
 
     <!-- Library View (shown when Library tab is active) -->
     <div id="library-view" class="hidden">
-        <div id="library-analytics"></div>
         <div id="library-empty" class="library-empty-state">
             <span class="dim">No mechanics accepted yet. Run the pipeline to grow your library.</span>
         </div>
-        <div id="library-grid"></div>
+        <div id="library-split" class="library-split">
+            <section class="library-column" data-game="board">
+                <header class="library-column-header">
+                    <h3>Board</h3>
+                    <span class="library-column-count" id="library-count-board">0</span>
+                </header>
+                <div class="library-grid" id="library-grid-board"></div>
+            </section>
+            <section class="library-column" data-game="card">
+                <header class="library-column-header">
+                    <h3>Card</h3>
+                    <span class="library-column-count" id="library-count-card">0</span>
+                </header>
+                <div class="library-grid" id="library-grid-card"></div>
+            </section>
+        </div>
     </div>
 
     <!-- AI vs AI View (shown when AI vs AI tab is active) -->
@@ -377,6 +391,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20260504-library-restore"></script>
+    <script src="/static/app.js?v=20260430-13"></script>
 </body>
 </html>

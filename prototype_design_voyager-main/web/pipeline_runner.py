@@ -26,8 +26,6 @@ from mechanic_library import MechanicLibrary
 from proposal_module import propose_mechanic
 from compile_check import compile_check
 from playtest_module import (
-    N_GAMES_BALANCE,
-    N_GAMES_DEPTH,
     run_baseline,
     run_playtest_full,
     run_single_game_recorded,
@@ -153,6 +151,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
     # ── Baseline playtest (no mechanic) ─────────────────────────────────
     # Tells the verifier what "the game with no mechanic" looks like, so it
     # can reject mechanics that don't change anything (delta-gated check).
+    from playtest_module import N_GAMES_BALANCE, N_GAMES_DEPTH
     emitter.emit("baseline_start", {
         "total_games": N_GAMES_BALANCE + N_GAMES_DEPTH,
         "balance_games": N_GAMES_BALANCE,
@@ -168,11 +167,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
 
     with _suppress_stdout():
         baseline_metrics = run_baseline(game_class=game_class, use_signal=False,
-                                        progress_cb=_baseline_progress,
-                                        stop_event=stop_event)
-    if stop_event and stop_event.is_set():
-        emitter.emit("error", {"message": "Run stopped by user."})
-        return
+                                        progress_cb=_baseline_progress)
     emitter.emit("baseline_result", {
         "playability": (baseline_metrics.completed_matches /
                         max(baseline_metrics.total_matches, 1)),
@@ -195,7 +190,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
         # Check for early stop
         if stop_event and stop_event.is_set():
             emitter.emit("error", {"message": "Run stopped by user."})
-            return
+            break
 
         emitter.emit("iteration_start", {
             "iteration":  iteration,
@@ -256,11 +251,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
             dummy_state=dummy_state,
             baseline_metrics=baseline_metrics,
             stage=curriculum.stage,
-            stop_event=stop_event,
         )
-        if stop_event and stop_event.is_set():
-            emitter.emit("error", {"message": "Run stopped by user."})
-            return
 
         # Revision path
         if decision == REVISE:
@@ -329,11 +320,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
                 dummy_state=dummy_state,
                 baseline_metrics=baseline_metrics,
                 stage=curriculum.stage,
-                stop_event=stop_event,
             )
-            if stop_event and stop_event.is_set():
-                emitter.emit("error", {"message": "Run stopped by user."})
-                return
 
         # Final verdict
         emitter.emit("verify_result", {
@@ -390,7 +377,7 @@ def _empty_phase():
 
 def _compile_playtest_verify(emitter, mechanic, already_revised,
                               game_class, game_name, dummy_state,
-                              baseline_metrics, stage, stop_event=None):
+                              baseline_metrics, stage):
     """
     Run compile check, playtest, and delta-gated verify. Emits events for each step.
     Returns (decision, scores, replay_data_dict).
@@ -399,8 +386,6 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
     # Compile check
     with _suppress_stdout():
         ok, error = compile_check(mechanic, dummy_state=dummy_state)
-    if stop_event and stop_event.is_set():
-        return DISCARD, {}, None
 
     emitter.emit("compile_result", {
         "passed": ok,
@@ -475,8 +460,6 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
             "message": f"Demo replay failed: {type(e).__name__}: {e}",
         })
     emitter.emit("demo_replay_done", {})
-    if stop_event and stop_event.is_set():
-        return DISCARD, {}, None
 
     # Fast-fail: recorded game never finished -> unplayable. Skip full playtest.
     if not replay_completed:
@@ -513,8 +496,6 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
     # Full playtest (use_signal=False since we run in a background thread)
     emitter.emit("playtest_start", {
         "mechanic_name": mechanic.get("mechanic_name", "unknown"),
-        "balance_games": N_GAMES_BALANCE,
-        "depth_games": N_GAMES_DEPTH,
     })
 
     def _play_progress(phase, completed, total):
@@ -528,10 +509,7 @@ def _compile_playtest_verify(emitter, mechanic, already_revised,
         child_metrics, trigger_stats, scores = run_playtest_full(
             mechanic, game_class=game_class, use_signal=False,
             progress_cb=_play_progress,
-            stop_event=stop_event,
         )
-    if stop_event and stop_event.is_set():
-        return DISCARD, {}, None
 
     # Verify (delta-gated). The verifier returns the full output dict so we
     # can show the user the deltas and the relative gain.

@@ -45,27 +45,20 @@ const replaySpeed   = document.getElementById('replay-speed');
 
 let ws = null;
 let running = false;
-let wsConnected = false;
-let baselineCounts = { total: 0, balance: 0, depth: 0 };
-let playtestCounts = { total: 0, balance: 0, depth: 0 };
 
 function connect() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${location.host}/ws`);
 
     ws.onopen = () => {
-        wsConnected = true;
         connDot.className = 'dot connected';
         connDot.title = 'Connected';
-        startBtn.disabled = false;
     };
 
     ws.onclose = () => {
-        wsConnected = false;
         connDot.className = 'dot disconnected';
         connDot.title = 'Disconnected';
         running = false;
-        startBtn.disabled = true;
         updateButtons();
         // Auto-reconnect after 2 seconds
         setTimeout(connect, 2000);
@@ -87,24 +80,12 @@ connect();
 // ── Controls ────────────────────────────────────────────────────────────────
 
 startBtn.addEventListener('click', () => {
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-        logContent.innerHTML = `
-            <div class="verdict-panel discard">
-                <div class="verdict-title">Connection Error</div>
-                <div class="verdict-detail">Dashboard is not connected to the backend WebSocket yet. Wait for the green status dot, then try again.</div>
-            </div>`;
-        return;
-    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
     // Clear previous output
     logContent.innerHTML = '';
     replayPlayer.reset();
     tutorialPlayer.reset();
-    logContent.insertAdjacentHTML('beforeend', `
-        <div class="status-line startup-line" id="startup-line">
-            <span class="spinner"></span>
-            Starting pipeline run...
-        </div>`);
 
     running = true;
     updateButtons();
@@ -145,7 +126,7 @@ resetBtn.addEventListener('click', async () => {
     const ok = window.confirm(
         `Reset the ${game} game library?\n\n` +
         `This will delete ${fileList}.\n\n` +
-        `Discarded names will be cleared too, so the model may re-propose them. ` +
+        `Discarded names will be cleared too, so Gemini may re-propose them. ` +
         `This cannot be undone.`
     );
     if (!ok) return;
@@ -227,8 +208,6 @@ function handleEvent(type, data) {
 // ── Render functions ────────────────────────────────────────────────────────
 
 function renderWelcome(d) {
-    const startup = document.getElementById('startup-line');
-    if (startup) startup.remove();
     const html = `
         <div class="welcome-banner">
             <h2>DesignVoyager</h2>
@@ -250,11 +229,6 @@ function renderWelcome(d) {
 
 function renderBaselineStart(d) {
     const total = d.total_games || 100;
-    baselineCounts = {
-        total,
-        balance: d.balance_games || 0,
-        depth: d.depth_games || 0,
-    };
     logContent.insertAdjacentHTML('beforeend', `
         <div class="progress-panel" id="baseline-progress-panel">
             <div class="progress-title">
@@ -265,7 +239,7 @@ function renderBaselineStart(d) {
                 <div class="progress-bar-fill" id="baseline-bar" style="width:0%"></div>
             </div>
             <div class="progress-detail" id="baseline-detail">
-                Setting up baseline matches...
+                Setting up... this takes 30 to 90 seconds the first time.
             </div>
         </div>`);
 }
@@ -274,13 +248,7 @@ function renderBaselineProgress(d) {
     const bar    = document.getElementById('baseline-bar');
     const detail = document.getElementById('baseline-detail');
     if (!bar || !detail) return;
-    const balance = baselineCounts.balance || 0;
-    const depth = baselineCounts.depth || 0;
-    const total = baselineCounts.total || (balance + depth) || d.total || 1;
-    const done = d.phase === 'balance'
-        ? d.completed
-        : balance + d.completed;
-    const pct = Math.round((done / total) * 100);
+    const pct = Math.round((d.completed / d.total) * 100);
     bar.style.width = pct + '%';
     const phaseLabel = d.phase === 'balance' ? 'Balance phase' : 'Depth phase';
     detail.textContent = `${phaseLabel}: game ${d.completed} of ${d.total}`;
@@ -366,10 +334,10 @@ function renderProposeStart(d) {
         <div class="propose-panel" id="propose-panel">
             <div class="propose-header">
                 <span class="spinner"></span>
-                <strong>OpenAI is designing a new mechanic</strong>
+                <strong>Gemini is designing a new mechanic</strong>
                 <span class="propose-context">(using ${d.context_count} mechanics as context)</span>
             </div>
-            <div class="propose-phase" id="propose-phase">Connecting to OpenAI...</div>
+            <div class="propose-phase" id="propose-phase">Connecting to Gemini...</div>
             <pre class="propose-stream" id="propose-stream"></pre>
         </div>`;
     logContent.insertAdjacentHTML('beforeend', html);
@@ -452,11 +420,6 @@ function renderInlineError(d) {
 }
 
 function renderPlaytestStart(d) {
-    playtestCounts = {
-        balance: d.balance_games || 0,
-        depth: d.depth_games || 0,
-        total: (d.balance_games || 0) + (d.depth_games || 0),
-    };
     // Defensive: clear the demo-replay spinner if it is still around.
     const demo = document.getElementById('demo-replay-line');
     if (demo) demo.remove();
@@ -464,7 +427,7 @@ function renderPlaytestStart(d) {
         <div class="progress-panel" id="playtest-progress-panel">
             <div class="progress-title">
                 <span class="spinner"></span>
-                Playtesting <strong>${d.mechanic_name}</strong> <span class="progress-sub">(${playtestCounts.total || 'multiple'} games)</span>
+                Playtesting <strong>${d.mechanic_name}</strong> <span class="progress-sub">(100 games)</span>
             </div>
             <div class="progress-bar-container">
                 <div class="progress-bar-fill" id="playtest-bar" style="width:0%"></div>
@@ -479,13 +442,13 @@ function renderPlaytestProgress(d) {
     const bar    = document.getElementById('playtest-bar');
     const detail = document.getElementById('playtest-detail');
     if (!bar || !detail) return;
-    const balance = playtestCounts.balance || 0;
-    const depth = playtestCounts.depth || 0;
-    const total = playtestCounts.total || (balance + depth) || d.total || 1;
-    const done = d.phase === 'balance'
-        ? d.completed
-        : balance + d.completed;
-    const overallPct = (done / total) * 100;
+    // The two phases (balance, depth) each go 0..100% of their own count.
+    // Compose them into a single 0..100% by treating balance as 0..60% of
+    // overall and depth as 60..100%.
+    const balanceWeight = 0.6;
+    const overallPct = d.phase === 'balance'
+        ? (d.completed / d.total) * balanceWeight * 100
+        : balanceWeight * 100 + (d.completed / d.total) * (1 - balanceWeight) * 100;
     bar.style.width = overallPct.toFixed(0) + '%';
     const phaseLabel = d.phase === 'balance' ? 'Balance phase' : 'Depth phase';
     detail.textContent = `${phaseLabel}: game ${d.completed} of ${d.total}`;
@@ -643,7 +606,7 @@ function renderVerifyResult(d) {
         detail = `Mechanic moved metrics off baseline. ${agg}`;
     } else if (decision === 'revise') {
         title = '&rarr; REVISING';
-        detail = d.feedback || 'Sending feedback for one revision attempt...';
+        detail = d.feedback || 'Sending feedback to Gemini for one revision attempt...';
     } else {
         title = '&#10007; DISCARDED';
         detail = d.feedback || 'Could not produce a working mechanic.';
@@ -661,7 +624,7 @@ function renderRevisionStart(d) {
         <div class="propose-panel" id="propose-panel">
             <div class="propose-header">
                 <span class="spinner"></span>
-                <strong>OpenAI is revising ${d.mechanic_name}</strong>
+                <strong>Gemini is revising ${d.mechanic_name}</strong>
             </div>
             <div class="propose-phase" id="propose-phase">Reading the failure feedback...</div>
             <pre class="propose-stream" id="propose-stream"></pre>
@@ -696,7 +659,7 @@ function renderRevisionResult(d) {
 function renderCurriculumAdvance(d) {
     logContent.insertAdjacentHTML('beforeend', `
         <div class="curriculum-advance">
-            &#9733; Unlocked ${d.new_stage_name}! The model will now propose more complex mechanics.
+            &#9733; Unlocked ${d.new_stage_name}! Gemini will now propose more complex mechanics.
         </div>`);
 }
 
@@ -728,14 +691,6 @@ function renderRunComplete(d) {
 function renderError(d) {
     running = false;
     updateButtons();
-    const startup = document.getElementById('startup-line');
-    const baselinePanel = document.getElementById('baseline-progress-panel');
-    const playtestPanel = document.getElementById('playtest-progress-panel');
-    const demoReplayLine = document.getElementById('demo-replay-line');
-    if (startup) startup.remove();
-    if (baselinePanel) baselinePanel.remove();
-    if (playtestPanel) playtestPanel.remove();
-    if (demoReplayLine) demoReplayLine.remove();
     logContent.insertAdjacentHTML('beforeend', `
         <div class="verdict-panel discard">
             <div class="verdict-title">Error</div>
@@ -1536,9 +1491,15 @@ const libraryManager = {
     // (board / card) and each card routes to the column matching its
     // game_type. _gridEl(card) picks the right one; falls back to board
     // for cards missing a game_type field (older saves).
-    get _analyticsEl() { return document.getElementById('library-analytics'); },
-    get _emptyEl() { return document.getElementById('library-empty'); },
-    get _gridEl() { return document.getElementById('library-grid'); },
+    get _emptyEl()  { return document.getElementById('library-empty'); },
+    _gridEl(card) {
+        const gt = (card && card.game_type) === 'card' ? 'card' : 'board';
+        return document.getElementById(`library-grid-${gt}`);
+    },
+    _countEl(card) {
+        const gt = (card && card.game_type) === 'card' ? 'card' : 'board';
+        return document.getElementById(`library-count-${gt}`);
+    },
 
     // ── Public API ──────────────────────────────────────────────────────────
 
@@ -1547,40 +1508,21 @@ const libraryManager = {
             const res = await fetch('/api/library-cards');
             if (!res.ok) return;
             const cards = await res.json();
-            cards.forEach(card => this._addCard(card, false));
-            this._renderAll();
+            cards.forEach(c => this._addCard(c));
         } catch (e) { /* server may not be running yet */ }
     },
 
     addLive(card) {
-        this._addCard(card, true);
+        this._addCard(card);
     },
 
     // ── Private helpers ─────────────────────────────────────────────────────
 
-    _addCard(card, rerender = true) {
-        this.cards.push(this._enrichCard(card));
-        this.cards.sort((a, b) => {
-            const diff = (b.scores?.aggregate ?? 0) - (a.scores?.aggregate ?? 0);
-            return diff !== 0 ? diff : (a.mechanic_name || '').localeCompare(b.mechanic_name || '');
-        });
-        if (rerender) this._renderAll();
-    },
-
-    _renderAll() {
-        this._stopAllAnimations();
-        this.expandedId = null;
-        this._gridEl.innerHTML = '';
-
-        if (this.cards.length === 0) {
-            this._emptyEl.classList.remove('hidden');
-            this._analyticsEl.innerHTML = '';
-            return;
-        }
-
+    _addCard(card) {
+        const id = this.cards.length;
+        this.cards.push(card);
         this._emptyEl.classList.add('hidden');
-        this._analyticsEl.innerHTML = buildLibraryAnalyticsHtml(this._buildAnalytics());
-        this.cards.forEach((card, index) => this._renderCard(index, card));
+        this._renderCard(id, card);
     },
 
     _renderCard(id, card) {
@@ -1590,48 +1532,16 @@ const libraryManager = {
 
         el.innerHTML = `
             <div class="lib-card-header">
-                <div class="lib-card-header-main">
-                    <span class="lib-card-name">${escapeHtml(card.mechanic_name || '')}</span>
-                    <div class="lib-card-subtitle">
-                        <span class="lib-badge game">${escapeHtml(card.game_type || '')}</span>
-                        <span class="lib-card-summary">${escapeHtml(card.meta.effectFamily)}</span>
-                    </div>
-                    <div class="lib-card-badges">
-                        <span class="lib-badge quality ${card.meta.qualityClass}">${escapeHtml(card.meta.qualityLabel)}</span>
-                        <span class="robustness-pill ${robustnessClass(card.robustnessLabel)}">${escapeHtml(robustnessTitle(card.robustnessLabel))}</span>
-                        <span class="lib-badge neutral">${escapeHtml(card.meta.designPattern)}</span>
-                    </div>
-                </div>
+                <span class="lib-card-name">${escapeHtml(card.mechanic_name || '')}</span>
                 <span class="lib-card-chevron">&#9660;</span>
             </div>
             <div class="lib-card-scores">
                 ${scoreBar('Balance', 1 - (card.scores?.balance_gap ?? 1))}
-                ${scoreBar('Depth', card.scores?.depth ?? 0)}
+                ${scoreBar('Depth',   card.scores?.depth   ?? 0)}
                 <hr class="score-divider">
                 ${scoreBar('Aggregate', card.scores?.aggregate ?? 0)}
             </div>
             <div class="lib-card-expanded-content hidden">
-                <div class="lib-card-meta-grid">
-                    <div class="lib-meta-card"><span class="lib-meta-label">Timing</span><span class="lib-meta-value">${escapeHtml(card.meta.timing)}</span></div>
-                    <div class="lib-meta-card"><span class="lib-meta-label">Scope</span><span class="lib-meta-value">${escapeHtml(card.meta.interactionScope)}</span></div>
-                    <div class="lib-meta-card"><span class="lib-meta-label">Pattern</span><span class="lib-meta-value">${escapeHtml(card.meta.designPattern)}</span></div>
-                    <div class="lib-meta-card"><span class="lib-meta-label">Iteration</span><span class="lib-meta-value">${card.iteration ?? 'n/a'}</span></div>
-                </div>
-                <div class="lib-robustness-panel">
-                    <div class="lib-robustness-head">
-                        <span class="robustness-pill ${robustnessClass(card.robustnessLabel)}">${escapeHtml(robustnessTitle(card.robustnessLabel))}</span>
-                        <span>${escapeHtml(card.robustnessSummary)}</span>
-                    </div>
-                    <div class="lib-compat-row">
-                        <span>Compatible: ${compatPills(card.compatibleGameTypes, 'ok')}</span>
-                        <span>Failed: ${compatPills(card.failedGameTypes, 'fail')}</span>
-                    </div>
-                    <div class="lib-game-result-grid">${gameResultChips(card)}</div>
-                </div>
-                <div class="lib-quality-line">
-                    <span class="lib-quality-title">${escapeHtml(card.meta.qualityLabel)}</span>
-                    <span class="lib-quality-copy">Balance ${formatScore(1 - (card.scores?.balance_gap ?? 1))} · Depth ${formatScore(card.scores?.depth ?? 0)} · Aggregate ${formatScore(card.scores?.aggregate ?? 0)}</span>
-                </div>
                 <div class="lib-card-desc">${escapeHtml(card.description || '')}</div>
                 <div class="lib-card-tutorial">
                     <div class="lib-phase-label phase-before">BEFORE</div>
@@ -1640,7 +1550,13 @@ const libraryManager = {
             </div>`;
 
         el.addEventListener('click', () => this._toggleCard(id));
-        this._gridEl.appendChild(el);
+        const gridEl = this._gridEl(card);
+        if (gridEl) gridEl.appendChild(el);
+        const countEl = this._countEl(card);
+        if (countEl) {
+            const n = parseInt(countEl.textContent, 10) || 0;
+            countEl.textContent = n + 1;
+        }
     },
 
     _staticBoard(board, trigger) {
@@ -1910,484 +1826,7 @@ const libraryManager = {
         const parts = moveStr.split(' ');
         return parts.length === 2 ? parts[1] : null;
     },
-
-    _stopAllAnimations() {
-        Object.keys(this._animations).forEach(id => this._stopAnimation(id));
-    },
-
-    _enrichCard(card) {
-        const robustness = normalizeRobustness(card.robustness);
-        return {
-            ...card,
-            robustness,
-            robustnessLabel: robustness.label,
-            compatibleGameTypes: robustness.compatible_game_types,
-            failedGameTypes: robustness.failed_game_types,
-            robustnessSummary: robustnessSummary(robustness),
-            meta: classifyMechanic(card),
-        };
-    },
-
-    _buildAnalytics() {
-        const total = this.cards.length;
-        const boardCards = this.cards.filter(card => card.game_type === 'board');
-        const cardCards = this.cards.filter(card => card.game_type === 'card');
-        const avgAggregate = average(this.cards.map(card => card.scores?.aggregate ?? 0));
-        const avgBalance = average(this.cards.map(card => 1 - (card.scores?.balance_gap ?? 1)));
-        const highDepthCount = this.cards.filter(card => (card.scores?.depth ?? 0) >= 0.8).length;
-        const boardAgg = average(boardCards.map(card => card.scores?.aggregate ?? 0));
-        const cardAgg = average(cardCards.map(card => card.scores?.aggregate ?? 0));
-
-        const familyStats = summarizeBy(this.cards, card => card.meta.effectFamily)
-            .map(toMetricSummary)
-            .sort((a, b) => b.avgAggregate - a.avgAggregate || b.count - a.count)
-            .slice(0, 6);
-
-        const patternStats = summarizeBy(this.cards, card => card.meta.designPattern)
-            .map(toMetricSummary)
-            .sort((a, b) => b.count - a.count || b.avgAggregate - a.avgAggregate)
-            .slice(0, 4);
-
-        const bestOverall = [...this.cards]
-            .sort((a, b) => (b.scores?.aggregate ?? 0) - (a.scores?.aggregate ?? 0))
-            .slice(0, 3);
-
-        const fairestFamily = familyStats.slice().sort((a, b) => b.avgBalance - a.avgBalance)[0];
-        const robustnessStats = summarizeRobustness(this.cards);
-        const testedCount = this.cards.filter(card => card.robustnessLabel !== 'untested').length;
-
-        return {
-            overview: {
-                total,
-                boardCount: boardCards.length,
-                cardCount: cardCards.length,
-                avgAggregate,
-                avgBalance,
-                highDepthCount,
-                testedCount,
-                untestedCount: total - testedCount,
-                mostFairFamily: fairestFamily ? fairestFamily.label : 'n/a',
-                bestGameType: boardAgg >= cardAgg ? `Board (${boardAgg.toFixed(2)})` : `Card (${cardAgg.toFixed(2)})`,
-            },
-            robustnessStats,
-            familyStats,
-            patternStats,
-            bestOverall,
-            insights: buildInsights(this.cards, familyStats, patternStats, boardCards, cardCards),
-        };
-    },
 };
-
-function buildLibraryAnalyticsHtml(analytics) {
-    const testedPct = analytics.overview.total
-        ? (analytics.overview.testedCount / analytics.overview.total) * 100
-        : 0;
-    const robustnessCards = analytics.robustnessStats.map(stat => `
-        <div class="robustness-stat-card ${robustnessClass(stat.label)}">
-            <div class="robustness-stat-icon">${robustnessIcon(stat.label)}</div>
-            <div>
-                <div class="robustness-stat-label">${escapeHtml(robustnessTitle(stat.label))}</div>
-                <div class="robustness-stat-value">${stat.count}</div>
-                <div class="robustness-stat-sub">${stat.percent.toFixed(0)}% of library</div>
-            </div>
-        </div>
-    `).join('');
-
-    const robustnessBar = analytics.robustnessStats.map(stat => `
-        <div class="robustness-bar-segment ${robustnessClass(stat.label)}" style="width:${stat.percent}%"></div>
-    `).join('');
-
-    const familyCards = analytics.familyStats.map(stat => `
-        <div class="family-row-card ${stat.robustRate >= 0.5 ? 'strong' : ''}">
-            <div class="family-row-top">
-                <div class="family-row-title">
-                    <span class="family-icon">${escapeHtml(familyIcon(stat.label))}</span>
-                    <span>${escapeHtml(stat.label)}</span>
-                </div>
-                <div class="family-row-count">${stat.count}</div>
-            </div>
-            <div class="family-row-bars">
-                ${miniMetricBar('B', stat.avgBalance, 'green')}
-                ${miniMetricBar('D', stat.avgDepth, 'blue')}
-                ${miniMetricBar('A', stat.avgAggregate, 'purple')}
-                ${miniMetricBar('R', stat.robustRate, 'robust')}
-            </div>
-            <div class="family-row-foot">
-                <span>${stat.robustCount} robust</span>
-                <span>${stat.contextCount} context</span>
-                <span>${stat.nonRobustCount} fail</span>
-            </div>
-        </div>
-    `).join('');
-
-    const bestCards = analytics.bestOverall.map(card => `
-            <div class="analytics-best-row">
-                <div>
-                    <div class="analytics-best-name">${escapeHtml(card.mechanic_name)}</div>
-                    <div class="analytics-best-sub">${escapeHtml(card.meta.effectFamily)} | ${escapeHtml(robustnessTitle(card.robustnessLabel))}</div>
-                </div>
-                <div class="analytics-best-right">
-                    <span class="robustness-pill ${robustnessClass(card.robustnessLabel)}">${escapeHtml(robustnessTitle(card.robustnessLabel))}</span>
-                    <span class="analytics-best-meta">${formatScore(card.scores?.aggregate ?? 0)}</span>
-                </div>
-        </div>
-    `).join('');
-
-    const patternCards = analytics.patternStats.map(stat => `
-        <div class="pattern-chip">
-            <span class="pattern-icon">${escapeHtml(patternIcon(stat.label))}</span>
-            <span>${escapeHtml(stat.label)}</span>
-            <span class="pattern-chip-meta">${stat.count}</span>
-        </div>
-    `).join('');
-
-    const insightChips = analytics.insights.map(insight => `
-        <div class="insight-chip">
-            <span class="insight-icon">${insight.icon}</span>
-            <span class="insight-text">${escapeHtml(insight.text)}</span>
-        </div>
-    `).join('');
-
-    return `
-        <section class="library-analytics-panel">
-            <div class="library-analytics-hero">
-                <div class="analytics-title-block">
-                    <div class="analytics-kicker">Library Analytics</div>
-                    <h2>Accepted Mechanic Overview</h2>
-                    <p>Combined board and card libraries, ranked by aggregate score and annotated with robustness coverage when available.</p>
-                </div>
-                <div class="analytics-score-ring">
-                    <div class="score-ring-value">${analytics.overview.avgAggregate.toFixed(2)}</div>
-                    <div class="score-ring-label">Avg Aggregate</div>
-                </div>
-            </div>
-
-            <div class="analytics-overview-grid">
-                <div class="analytics-stat-card primary">
-                    <div class="analytics-stat-icon">#</div>
-                    <div class="analytics-stat-label">Accepted</div>
-                    <div class="analytics-stat-value">${analytics.overview.total}</div>
-                    <div class="analytics-stat-sub">${analytics.overview.boardCount} board | ${analytics.overview.cardCount} card</div>
-                </div>
-                <div class="analytics-stat-card">
-                    <div class="analytics-stat-icon">T</div>
-                    <div class="analytics-stat-label">Robustness Coverage</div>
-                    <div class="analytics-stat-value">${analytics.overview.testedCount}</div>
-                    <div class="analytics-stat-sub">${testedPct.toFixed(0)}% tested, ${analytics.overview.untestedCount} untested</div>
-                </div>
-                <div class="analytics-stat-card">
-                    <div class="analytics-stat-icon">B</div>
-                    <div class="analytics-stat-label">Average Balance</div>
-                    <div class="analytics-stat-value">${analytics.overview.avgBalance.toFixed(2)}</div>
-                    <div class="analytics-stat-sub">${analytics.overview.highDepthCount} mechanics with depth >= 0.80</div>
-                </div>
-                <div class="analytics-stat-card">
-                    <div class="analytics-stat-icon">F</div>
-                    <div class="analytics-stat-label">Most Fair Family</div>
-                    <div class="analytics-stat-value small">${escapeHtml(analytics.overview.mostFairFamily)}</div>
-                    <div class="analytics-stat-sub">${escapeHtml(analytics.overview.bestGameType)} leads by aggregate</div>
-                </div>
-            </div>
-
-            <section class="analytics-section robustness-section">
-                <div class="analytics-section-header">
-                    <h3>Robustness Distribution</h3>
-                    <span>cross-game verifier labels</span>
-                </div>
-                <div class="robustness-stat-grid">${robustnessCards}</div>
-                <div class="robustness-bar">${robustnessBar}</div>
-                ${analytics.overview.testedCount === 0
-                    ? '<div class="analytics-note">No mechanics in the current merged library have cross-game verifier results yet. Distribution is therefore entirely untested.</div>'
-                    : ''}
-            </section>
-
-            <div class="analytics-sections">
-                <section class="analytics-section">
-                    <div class="analytics-section-header">
-                        <h3>Family Performance</h3>
-                        <span>Balance / Depth / Aggregate / Robust</span>
-                    </div>
-                    <div class="analytics-type-grid">${familyCards}</div>
-                </section>
-
-                <section class="analytics-section analytics-side-section">
-                    <div class="analytics-section-header">
-                        <h3>Top Mechanics</h3>
-                        <span>aggregate rank</span>
-                    </div>
-                    <div class="analytics-best-list">${bestCards}</div>
-                    <div class="analytics-section-header secondary">
-                        <h3>Patterns</h3>
-                        <span>common motifs</span>
-                    </div>
-                    <div class="analytics-mini-grid">${patternCards}</div>
-                </section>
-            </div>
-
-            <section class="analytics-section">
-                <div class="analytics-section-header">
-                    <h3>Quick Read</h3>
-                    <span>generated from current library</span>
-                </div>
-                <div class="analytics-insight-grid">${insightChips}</div>
-            </section>
-        </section>`;
-}
-
-function classifyMechanic(card) {
-    const text = `${card.mechanic_name || ''} ${card.description || ''}`.toLowerCase();
-    const effectFamily = matchFirst(text, [
-        [['extra turn', 'lockstep', 'pause', 'tempo'], 'Tempo / Turn Control'],
-        [['capture', 'remove', 'blast', 'destroy'], 'Capture / Removal'],
-        [['flip', 'mirror'], 'Flip / Conversion'],
-        [['freeze', 'stun', 'lock'], 'Freeze / Denial'],
-        [['block', 'guard', 'shield'], 'Block / Protection'],
-        [['swap'], 'Swap / Position Shift'],
-        [['score', 'bonus', 'point'], 'Scoring Bonus'],
-        [['parity', 'threshold', 'hand', 'choice'], 'Hand / Conditional Rule'],
-        [['link', 'combo', 'synergy', 'line'], 'Combo / Synergy'],
-    ], 'Board Interaction');
-
-    const timing = matchFirst(text, [
-        [['on capture', 'capture'], 'On Capture'],
-        [['after placing', 'on placement', 'placement'], 'On Placement'],
-        [['extra turn', 'turn'], 'Turn-Based Trigger'],
-        [['if', 'when', 'threshold', 'parity'], 'Conditional Trigger'],
-    ], 'Immediate Trigger');
-
-    const interactionScope = matchFirst(text, [
-        [['adjacent', 'orthogonally adjacent'], 'Adjacent Local'],
-        [['diagonal'], 'Diagonal Local'],
-        [['line', 'row', 'column', '4-in-a-row'], 'Line / Pattern'],
-        [['hand', 'card'], 'Hand / Card State'],
-        [['center', 'corner'], 'Board Region'],
-    ], 'General State');
-
-    const designPattern = matchFirst(text, [
-        [['extra turn', 'tempo', 'lockstep', 'pause'], 'Tempo Advantage'],
-        [['score', 'bonus', 'choice'], 'Risk / Reward'],
-        [['block', 'freeze', 'shield', 'guard'], 'Counterplay'],
-        [['link', 'combo', 'synergy'], 'Synergy / Combo'],
-        [['adjacent', 'diagonal', 'line', 'corner', 'center'], 'Spatial Tension'],
-        [['threshold', 'parity', 'hand'], 'Conditional Planning'],
-    ], 'Direct Interaction');
-
-    const balance = 1 - (card.scores?.balance_gap ?? 1);
-    const depth = card.scores?.depth ?? 0;
-    const aggregate = card.scores?.aggregate ?? 0;
-
-    let qualityLabel = 'Promising';
-    let qualityClass = 'promising';
-    if (aggregate >= 0.9 && balance >= 0.85 && depth >= 0.8) {
-        qualityLabel = 'Elite';
-        qualityClass = 'elite';
-    } else if (balance >= 0.95 && depth >= 0.75) {
-        qualityLabel = 'Fair + Deep';
-        qualityClass = 'fairdeep';
-    } else if (balance >= 0.95) {
-        qualityLabel = 'Very Fair';
-        qualityClass = 'fair';
-    } else if (depth >= 0.85) {
-        qualityLabel = 'High Depth';
-        qualityClass = 'depth';
-    } else if (aggregate < 0.76) {
-        qualityLabel = 'Needs Work';
-        qualityClass = 'risky';
-    }
-
-    return {
-        effectFamily,
-        timing,
-        interactionScope,
-        designPattern,
-        qualityLabel,
-        qualityClass,
-        qualitySummary: `${qualityLabel} · balance ${balance.toFixed(2)} · depth ${depth.toFixed(2)} · agg ${aggregate.toFixed(2)}`,
-    };
-}
-
-function matchFirst(text, rules, fallback) {
-    for (const [keywords, label] of rules) {
-        if (keywords.some(keyword => text.includes(keyword))) return label;
-    }
-    return fallback;
-}
-
-function average(values) {
-    if (!values.length) return 0;
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function formatScore(value) {
-    return Number(value || 0).toFixed(2);
-}
-
-function summarizeBy(cards, keyFn) {
-    const groups = new Map();
-    cards.forEach(card => {
-        const key = keyFn(card);
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(card);
-    });
-    return [...groups.entries()].map(([label, groupedCards]) => ({ label, cards: groupedCards }));
-}
-
-function toMetricSummary(group) {
-    const robustCount = group.cards.filter(card => card.robustnessLabel === 'robust').length;
-    const contextCount = group.cards.filter(card => card.robustnessLabel === 'context_sensitive').length;
-    const nonRobustCount = group.cards.filter(card => card.robustnessLabel === 'non_robust').length;
-    const testedCount = group.cards.filter(card => card.robustnessLabel !== 'untested').length;
-    return {
-        label: group.label,
-        count: group.cards.length,
-        avgBalance: average(group.cards.map(card => 1 - (card.scores?.balance_gap ?? 1))),
-        avgDepth: average(group.cards.map(card => card.scores?.depth ?? 0)),
-        avgAggregate: average(group.cards.map(card => card.scores?.aggregate ?? 0)),
-        robustCount,
-        contextCount,
-        nonRobustCount,
-        testedCount,
-        robustRate: testedCount ? robustCount / testedCount : 0,
-    };
-}
-
-function normalizeRobustness(raw) {
-    const knownLabels = new Set(['robust', 'context_sensitive', 'non_robust']);
-    const source = raw && typeof raw === 'object' ? raw : {};
-    const label = knownLabels.has(source.label) ? source.label : 'untested';
-    return {
-        label,
-        compatible_game_types: Array.isArray(source.compatible_game_types) ? source.compatible_game_types : [],
-        failed_game_types: Array.isArray(source.failed_game_types) ? source.failed_game_types : [],
-        per_game: source.per_game && typeof source.per_game === 'object' ? source.per_game : {},
-        tested_games: Number(source.tested_games || 0),
-    };
-}
-
-function robustnessTitle(label) {
-    const titles = {
-        robust: 'Robust',
-        context_sensitive: 'Context-sensitive',
-        non_robust: 'Non-robust',
-        untested: 'Untested',
-    };
-    return titles[label] || 'Untested';
-}
-
-function robustnessClass(label) {
-    return (label || 'untested').replace(/_/g, '-');
-}
-
-function robustnessIcon(label) {
-    if (label === 'robust') return 'R';
-    if (label === 'context_sensitive') return 'C';
-    if (label === 'non_robust') return '!';
-    return '?';
-}
-
-function robustnessSummary(robustness) {
-    if (!robustness || robustness.label === 'untested') return 'No cross-game robustness pass yet';
-    const ok = robustness.compatible_game_types.length;
-    const fail = robustness.failed_game_types.length;
-    return `${ok} compatible | ${fail} failed | ${robustness.tested_games || ok + fail} tested`;
-}
-
-function summarizeRobustness(cards) {
-    const order = ['robust', 'context_sensitive', 'non_robust', 'untested'];
-    const total = cards.length || 1;
-    return order.map(label => {
-        const count = cards.filter(card => card.robustnessLabel === label).length;
-        return {
-            label,
-            count,
-            percent: (count / total) * 100,
-        };
-    });
-}
-
-function compatPills(items, tone) {
-    if (!items || !items.length) return '<span class="mini-pill muted">none</span>';
-    return items.map(item => `<span class="mini-pill ${tone}">${escapeHtml(item)}</span>`).join('');
-}
-
-function gameResultChips(card) {
-    const perGame = card.robustness?.per_game || {};
-    const keys = Object.keys(perGame).sort();
-    if (!keys.length) return '<div class="game-result-chip muted">No per-game verifier data</div>';
-    return keys.map(game => {
-        const result = perGame[game] || {};
-        const decision = result.decision || 'unknown';
-        const cls = decision === 'accept' ? 'ok' : 'fail';
-        const reason = result.reason || 'no reason';
-        return `
-            <div class="game-result-chip ${cls}">
-                <span>${escapeHtml(game)}</span>
-                <strong>${escapeHtml(decision)}</strong>
-                <small>${escapeHtml(reason)}</small>
-            </div>`;
-    }).join('');
-}
-
-function buildInsights(allCards, familyStats, patternStats, boardCards, cardCards) {
-    if (!allCards.length) return [];
-    const insights = [];
-    const topFamily = familyStats[0];
-    if (topFamily) {
-        insights.push({ icon: 'Top', text: `${topFamily.label} leads aggregate at ${topFamily.avgAggregate.toFixed(2)}` });
-    }
-    const riskiestFamily = familyStats.slice().sort((a, b) => a.avgBalance - b.avgBalance)[0];
-    if (riskiestFamily) {
-        insights.push({ icon: 'Risk', text: `${riskiestFamily.label} is the riskiest family` });
-    }
-    const topPattern = patternStats[0];
-    if (topPattern) {
-        insights.push({ icon: 'Pattern', text: `${topPattern.label} is the most common pattern` });
-    }
-    if (boardCards.length && cardCards.length) {
-        const boardAgg = average(boardCards.map(card => card.scores?.aggregate ?? 0));
-        const cardAgg = average(cardCards.map(card => card.scores?.aggregate ?? 0));
-        const stronger = boardAgg >= cardAgg ? 'Board' : 'Card';
-        insights.push({ icon: 'Game', text: `${stronger} mechanics score better on average` });
-    }
-    const highDepth = allCards.filter(card => (card.scores?.depth ?? 0) >= 0.8).length;
-    insights.push({ icon: 'Depth', text: `${highDepth} mechanics qualify as high-depth` });
-    return insights.slice(0, 4);
-}
-
-function familyIcon(label) {
-    if (label.includes('Capture')) return 'CP';
-    if (label.includes('Flip')) return 'FL';
-    if (label.includes('Freeze')) return 'FR';
-    if (label.includes('Block')) return 'BL';
-    if (label.includes('Swap')) return 'SW';
-    if (label.includes('Tempo')) return 'TM';
-    if (label.includes('Scoring')) return 'SC';
-    if (label.includes('Hand')) return 'HD';
-    if (label.includes('Combo')) return 'CB';
-    return 'FX';
-}
-
-function patternIcon(label) {
-    if (label.includes('Tempo')) return 'TM';
-    if (label.includes('Risk')) return 'RK';
-    if (label.includes('Counter')) return 'CT';
-    if (label.includes('Synergy')) return 'SY';
-    if (label.includes('Spatial')) return 'SP';
-    if (label.includes('Conditional')) return 'CD';
-    return 'PT';
-}
-
-function miniMetricBar(label, value, tone) {
-    return `
-        <div class="mini-metric">
-            <span class="mini-metric-label">${label}</span>
-            <div class="mini-metric-track">
-                <div class="mini-metric-fill ${tone}" style="width:${Math.max(0, Math.min(100, value * 100))}%"></div>
-            </div>
-            <span class="mini-metric-value">${value.toFixed(2)}</span>
-        </div>
-    `;
-}
 
 
 // Wire up replay buttons
