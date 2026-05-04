@@ -19,6 +19,7 @@ import queue
 import sys
 import threading
 import os
+import numpy as np
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -547,7 +548,7 @@ async def _stream_events(ws, event_queue, pipeline_thread, stop_event):
         while True:
             try:
                 event = event_queue.get_nowait()
-                await ws.send_json(event)
+                await ws.send_json(_make_json_safe(event))
                 events_sent = True
 
                 # If this was the final event, we're done
@@ -563,6 +564,21 @@ async def _stream_events(ws, event_queue, pipeline_thread, stop_event):
         # Small sleep to avoid busy-waiting
         if not events_sent:
             await asyncio.sleep(0.1)
+
+
+def _make_json_safe(value):
+    """Recursively convert numpy and container values into JSON-safe shapes."""
+    if isinstance(value, dict):
+        return {str(k): _make_json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_make_json_safe(v) for v in value]
+    if isinstance(value, set):
+        return [_make_json_safe(v) for v in value]
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
 
 
 async def _receive_or_none(ws):
