@@ -476,6 +476,7 @@ async def websocket_endpoint(ws: WebSocket):
             game_name  = data.get("game_name", "board")
             iterations = int(data.get("iterations", 3))
             top_k      = int(data.get("top_k", 3))
+            user_prompt = data.get("user_prompt", "")
 
             # Event queue: pipeline thread writes, this coroutine reads
             event_queue = queue.Queue()
@@ -489,7 +490,7 @@ async def websocket_endpoint(ws: WebSocket):
             # Run the pipeline in a background thread
             pipeline_thread = threading.Thread(
                 target=_run_pipeline_thread,
-                args=(emitter, game_name, iterations, top_k, stop_event),
+                args=(emitter, game_name, iterations, top_k, stop_event, user_prompt),
                 daemon=True,
             )
             pipeline_thread.start()
@@ -505,7 +506,7 @@ async def websocket_endpoint(ws: WebSocket):
         pass
 
 
-def _run_pipeline_thread(emitter, game_name, iterations, top_k, stop_event):
+def _run_pipeline_thread(emitter, game_name, iterations, top_k, stop_event, user_prompt=""):
     """
     Wrapper that runs the pipeline and catches any unhandled exceptions,
     sending them as error events so the browser knows what happened.
@@ -516,7 +517,7 @@ def _run_pipeline_thread(emitter, game_name, iterations, top_k, stop_event):
 
     from web.pipeline_runner import run_web_pipeline
     try:
-        run_web_pipeline(emitter, game_name, iterations, top_k, stop_event)
+        run_web_pipeline(emitter, game_name, iterations, top_k, stop_event, user_prompt)
     except Exception as e:
         emitter.emit("error", {"message": f"Pipeline crashed: {e}"})
 

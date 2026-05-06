@@ -7,5 +7,7 @@
   "single_adjacent_block_on_placement_symmetric",
   "adjacent_opponent_deny_on_placement",
   "adjacent_flip_only_if_surrounded_on_placement",
-  "temporary_vertical_block_above_last_move_symmetric"
+  "temporary_vertical_block_above_last_move_symmetric",
+  "movement_block_column_above_or_below_last_move_one_turn",
+  "movement_block_vertical_below_last_move_for_one_turn"
 ]

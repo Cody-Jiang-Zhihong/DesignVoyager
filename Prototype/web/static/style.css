@@ -82,7 +82,8 @@ body {
 }
 
 .control-center select,
-.control-center input[type="number"] {
+.control-center input[type="number"],
+.control-center input[type="text"] {
     background: var(--bg);
     color: var(--text);
     border: 1px solid var(--border);
@@ -94,6 +95,13 @@ body {
 }
 
 .control-center select { width: 110px; }
+
+.control-center input[type="text"] { width: 200px; }
+
+.control-center input[type="text"]::placeholder {
+    color: var(--text-dim);
+    opacity: 0.6;
+}
 
 .control-right {
     display: flex;

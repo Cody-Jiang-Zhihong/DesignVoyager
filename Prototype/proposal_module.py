@@ -20,6 +20,22 @@ load_dotenv()
 MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 MAX_REPAIR_ATTEMPTS = 3
 
+# Game-specific mechanic type definitions
+BOARD_GAME_MECHANIC_TYPES = {
+    "movement": "After placing a piece, the player may perform an additional operation involving that newly placed piece or an empty space adjacent to it. This extra operation must have a clear gameplay purpose and must not be a trivial relocation of the piece to another square. The mechanic may be reusable across the game, but it must require a specific trigger or precondition rather than allowing unrestricted free actions.",
+    "resource": "A one-time skill available to each player only once during the entire game. The skill may restrict the opponent, strengthen the acting player, or meaningfully change the board state.",
+    "exception": "A triggered mechanic that activates automatically when a specific board condition is satisfied. It may interrupt or alter the normal game flow once its condition is met.",
+    "termination": "An alternative game-ending mechanic that introduces additional win conditions beyond the base rules. It should be deliberately non-trivial in structure, designed with strong attention to balance, and must avoid creating an extreme first-player advantage.",
+}
+
+CARD_GAME_MECHANIC_TYPES = {
+    "combo": "A mechanic in which the card played on the current turn can meaningfully interact with the card played on the previous turn. If the two-turn sequence satisfies a specific pattern or goal, the player gains an additional reward.",
+    "exception": "A triggered mechanic that activates automatically when a specific game-state condition is satisfied. Once triggered, it may alter the normal flow of the card game or temporarily change how the current game proceeds.",
+    "hand": "A mechanic that primarily changes which cards in one or both publicly visible hands can be used, kept, removed, exchanged, locked, or reinterpreted. Because the card game has no hidden information and no deck, the mechanic should focus on meaningful changes to playable hand state or card value interpretation, rather than card reveal, draw effects, or simple reordering that does not affect decision-making.",
+    "resource": "A one-time skill available to each player only once during the entire game. The skill may restrict the opponent, strengthen the acting player, or meaningfully change the current card-state or scoring situation.",
+    "tempo": "A mechanic that primarily changes turn flow or action timing in the card game. It may grant an extra turn, delay an effect, skip or alter an opponent's next action, or otherwise shift the pace and sequencing of play.",
+}
+
 
 def _build_client() -> OpenAI:
     kwargs = {}
@@ -48,14 +64,32 @@ The function must:
 3. Be safe - no infinite loops, no file I/O, no network calls
 4. Meaningfully change the game (not a no-op)
 
+CRITICAL NAMING REQUIREMENT:
+The mechanic_name MUST follow this EXACT format: "{{mechanic_type}}_{{descriptive_name}}"
+- Start with one of the valid mechanic_type values listed below
+- Followed by exactly one underscore
+- Followed by a descriptive snake_case name (e.g., "movement_diagonal_shift", "combo_cascade", "tempo_double_turn")
+Valid mechanic types and their definitions:
+{mechanic_types}
+
 Always respond in this exact JSON format (raw JSON only, no markdown):
 {{
-    "mechanic_name": "snake_case_name",
-    "mechanic_type": "one of: scoring | movement | resource | exception | termination | other",
+    "mechanic_name": "mechanic_type_descriptive_name",
+    "mechanic_type": "one of the valid types listed above",
     "description": "One clear sentence describing what this mechanic does",
     "justification": "One sentence explaining why this improves the game",
     "python_code": "import numpy as np\\n\\ndef mechanic_name(game_state: dict) -> dict:\\n    # implementation\\n    return game_state"
 }}"""
+
+_BOARD_GAME_MECHANIC_TYPES_STR = "\n".join(
+    f"- {name}: {desc}"
+    for name, desc in BOARD_GAME_MECHANIC_TYPES.items()
+)
+
+_CARD_GAME_MECHANIC_TYPES_STR = "\n".join(
+    f"- {name}: {desc}"
+    for name, desc in CARD_GAME_MECHANIC_TYPES.items()
+)
 
 _DEFAULT_STATE_DESCRIPTION = (
     "The game uses a state dictionary with these keys:\n"
@@ -73,9 +107,17 @@ _DEFAULT_STATE_DESCRIPTION = (
 )
 
 
-def _build_system_prompt(state_description: str = None) -> str:
+def _build_system_prompt(state_description: str = None, game_type: str = "board") -> str:
     desc = state_description or _DEFAULT_STATE_DESCRIPTION
-    return _SYSTEM_PROMPT_TEMPLATE.format(state_description=desc)
+    mechanic_types_str = (
+        _BOARD_GAME_MECHANIC_TYPES_STR if game_type == "board"
+        else _CARD_GAME_MECHANIC_TYPES_STR if game_type == "card"
+        else _BOARD_GAME_MECHANIC_TYPES_STR  # default to board
+    )
+    return _SYSTEM_PROMPT_TEMPLATE.format(
+        state_description=desc,
+        mechanic_types=mechanic_types_str
+    )
 
 
 SYSTEM_PROMPT = _build_system_prompt()
@@ -168,6 +210,7 @@ def propose_mechanic(
     state_description: str = None,
     banned_names: list = None,
     is_revision: bool = False,
+    game_type: str = "board",
     stream_cb=None,
 ) -> Optional[dict]:
     if retrieved_mechanics is None:
@@ -176,7 +219,7 @@ def propose_mechanic(
     print(f"\n[Proposal] Starting... ({len(retrieved_mechanics)} prior mechanics retrieved)")
 
     client = _build_client()
-    system_prompt = _build_system_prompt(state_description)
+    system_prompt = _build_system_prompt(state_description, game_type=game_type)
     next_message = build_proposal_prompt(
         game_skeleton,
         retrieved_mechanics,

@@ -12,6 +12,7 @@ const resetBtn      = document.getElementById('reset-btn');
 const gameSelect    = document.getElementById('game-select');
 const iterInput     = document.getElementById('iterations-input');
 const topkInput     = document.getElementById('topk-input');
+const userPromptInput = document.getElementById('user-prompt-input');
 const connDot       = document.getElementById('connection-dot');
 
 // Mechanic info
@@ -115,6 +116,7 @@ startBtn.addEventListener('click', () => {
             game_name:  gameSelect.value,
             iterations: parseInt(iterInput.value, 10),
             top_k:      parseInt(topkInput.value, 10),
+            user_prompt: userPromptInput.value,
         }
     }));
 });
@@ -2217,16 +2219,23 @@ function matchFirst(text, rules, fallback) {
 
 function familyFromMechanicType(mechanicType) {
     const t = String(mechanicType || '').trim().toLowerCase();
-    const validTypes = new Set([
+    // Check for game-specific mechanic types from proposal_module
+    const boardGameTypes = new Set([
         'movement',
         'resource',
         'exception',
         'termination',
+    ]);
+    const cardGameTypes = new Set([
         'combo',
         'hand',
         'tempo',
+        'resource',  // resource is shared between both
+        'exception', // exception is shared between both
     ]);
-    if (!validTypes.has(t)) return '';
+    const allValidTypes = new Set([...boardGameTypes, ...cardGameTypes]);
+    
+    if (!allValidTypes.has(t)) return '';
     return t.charAt(0).toUpperCase() + t.slice(1);
 }
 

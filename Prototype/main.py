@@ -50,7 +50,7 @@ DEFAULT_GAME       = 'board'
 
 
 def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
-             game_name: str = DEFAULT_GAME):
+             game_name: str = DEFAULT_GAME, user_prompt: str = ""):
     """
     Run the full DesignVoyager loop for n_iterations.
     Each iteration tries to produce one accepted mechanic.
@@ -59,6 +59,7 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
         n_iterations : number of design iterations
         top_k        : mechanics retrieved from library as context
         game_name    : key in GAME_REGISTRY ('board' or 'card')
+        user_prompt  : optional user-specified constraints or preferences for mechanic generation
     """
     game_class, library_file, discarded_file = GAME_REGISTRY[game_name]
 
@@ -115,10 +116,15 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
 
         # ── Step 2: Propose a mechanic ─────────────────────────────────────
         all_banned = list(set(banned_names) | tried_this_run)
+        # Combine curriculum stage prompt with user prompt if provided
+        combined_prompt = curriculum.stage_prompt()
+        if user_prompt:
+            combined_prompt = f"{combined_prompt}\n\nUser guidance: {user_prompt}"
         mechanic = propose_mechanic(game_skeleton, retrieved,
-                                    stage_prompt=curriculum.stage_prompt(),
+                                    stage_prompt=combined_prompt,
                                     state_description=state_desc,
-                                    banned_names=all_banned)
+                                    banned_names=all_banned,
+                                    game_type=game_name)
         if mechanic is None:
             print("[Loop] Proposal failed — skipping this iteration.\n")
             curriculum.on_discard()
@@ -137,9 +143,14 @@ def run_loop(n_iterations: int = DEFAULT_ITERATIONS, top_k: int = DEFAULT_TOP_K,
 
         if outcome == REVISE:
             print("[Loop] Sending for revision...\n")
+            # Combine curriculum stage prompt with user prompt for revision as well
+            combined_prompt = curriculum.stage_prompt()
+            if user_prompt:
+                combined_prompt = f"{combined_prompt}\n\nUser guidance: {user_prompt}"
             revised_mechanic = _revise(mechanic, game_skeleton, retrieved,
-                                       curriculum.stage_prompt(),
-                                       state_description=state_desc)
+                                       combined_prompt,
+                                       state_description=state_desc,
+                                       game_type=game_name)
             if revised_mechanic is None:
                 print("[Loop] Revision failed — discarding.\n")
                 discarded_library.save_name(mechanic.get("mechanic_name", ""), discarded_file)
@@ -267,12 +278,13 @@ def _get_scores(mechanic: dict) -> dict:
 
 
 def _revise(original_mechanic: dict, game_skeleton: str, retrieved: list,
-            stage_prompt: str = "", state_description: str = None):
+            stage_prompt: str = "", state_description: str = None, game_type: str = "board"):
     """
     Ask GPT-4 to revise a failing mechanic, keeping the same stage prompt.
 
     Args:
         state_description : forwarded to propose_mechanic for game-specific LLM prompt
+        game_type : game type ('board' or 'card') forwarded to propose_mechanic
     """
     feedback = original_mechanic.get("_revision_feedback", "Please improve this mechanic.")
     name     = original_mechanic.get("mechanic_name", "unknown")
@@ -293,7 +305,8 @@ def _revise(original_mechanic: dict, game_skeleton: str, retrieved: list,
     return propose_mechanic(skeleton_with_feedback, revision_context,
                             stage_prompt=stage_prompt,
                             state_description=state_description,
-                            is_revision=True)
+                            is_revision=True,
+                            game_type=game_type)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
@@ -319,5 +332,11 @@ if __name__ == "__main__":
         default=DEFAULT_GAME,
         help=f"Which game to design mechanics for (default: {DEFAULT_GAME})"
     )
+    parser.add_argument(
+        "--user-prompt", "-u",
+        type=str,
+        default="",
+        help="Optional user guidance or constraints for mechanic generation (e.g., 'focus on resource management', 'create a tempo mechanic')"
+    )
     args = parser.parse_args()
-    run_loop(n_iterations=args.iterations, top_k=args.top_k, game_name=args.game)
+    run_loop(n_iterations=args.iterations, top_k=args.top_k, game_name=args.game, user_prompt=args.user_prompt)

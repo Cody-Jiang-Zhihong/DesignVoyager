@@ -107,7 +107,8 @@ def _suppress_stdout():
 
 def run_web_pipeline(emitter: EventEmitter, game_name: str,
                      n_iterations: int, top_k: int,
-                     stop_event: threading.Event = None):
+                     stop_event: threading.Event = None,
+                     user_prompt: str = ""):
     """
     Run the full DesignVoyager pipeline, emitting events at each step.
 
@@ -117,6 +118,7 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
         n_iterations : how many design iterations
         top_k        : how many library mechanics to retrieve as context
         stop_event   : set this to signal early termination
+        user_prompt  : optional user-specified constraints or preferences for mechanic generation
     """
     if game_name not in GAME_REGISTRY:
         emitter.emit("error", {"message": f"Unknown game: {game_name}"})
@@ -221,11 +223,16 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
             emitter.emit("propose_stream", {"text": accumulated})
 
         with _suppress_stdout():
+            # Combine curriculum stage prompt with user prompt if provided
+            combined_prompt = curriculum.stage_prompt()
+            if user_prompt:
+                combined_prompt = f"{combined_prompt}\n\nUser guidance: {user_prompt}"
             mechanic = propose_mechanic(
                 skeleton, retrieved,
-                stage_prompt=curriculum.stage_prompt(),
+                stage_prompt=combined_prompt,
                 state_description=state_desc,
                 banned_names=all_banned,
+                game_type=game_name,
                 stream_cb=_propose_stream,
             )
 
@@ -292,12 +299,17 @@ def run_web_pipeline(emitter: EventEmitter, game_name: str,
                 emitter.emit("propose_stream", {"text": accumulated, "revision": True})
 
             with _suppress_stdout():
+                # Combine curriculum stage prompt with user prompt for revision as well
+                combined_prompt = curriculum.stage_prompt()
+                if user_prompt:
+                    combined_prompt = f"{combined_prompt}\n\nUser guidance: {user_prompt}"
                 revised = propose_mechanic(
                     revised_skeleton, revision_ctx,
-                    stage_prompt=curriculum.stage_prompt(),
+                    stage_prompt=combined_prompt,
                     state_description=state_desc,
                     banned_names=all_banned,
                     is_revision=True,
+                    game_type=game_name,
                     stream_cb=_revise_stream,
                 )
 

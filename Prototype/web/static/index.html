@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DesignVoyager Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260504-library-restore">
+    <link rel="stylesheet" href="/static/style.css?v=20260505-user-prompt">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -37,6 +37,10 @@
             <label>
                 Top-K
                 <input type="number" id="topk-input" value="3" min="1" max="10">
+            </label>
+            <label>
+                User Prompt
+                <input type="text" id="user-prompt-input" placeholder="e.g., focus on tempo mechanics, create resource combos" title="Optional guidance for mechanic generation">
             </label>
         </div>
         <div class="control-right">
@@ -377,6 +381,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=20260504-library-restore"></script>
+    <script src="/static/app.js?v=20260505-user-prompt"></script>
 </body>
 </html>

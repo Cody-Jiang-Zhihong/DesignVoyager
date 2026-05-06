@@ -187,7 +187,7 @@ def _compile_playtest_verify(mechanic: dict, already_revised: bool,
 
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
-def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = DEFAULT_GAME):
+def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = DEFAULT_GAME, user_prompt: str = ""):
     game_class, library_file, discarded_file = GAME_REGISTRY[game_name]
 
     # Instantiate a throw-away game object to get descriptions and dummy state
@@ -258,18 +258,20 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = DEFAULT_GAM
 
         # ── Step 2: Propose ─────────────────────────────────────────────────
         all_banned = list(set(banned_names) | tried_this_run)
+        # Combine curriculum stage prompt with user prompt if provided
+        combined_prompt = curriculum.stage_prompt()
+        if user_prompt:
+            combined_prompt = f"{combined_prompt}\n\nUser guidance: {user_prompt}"
         with console.status(
             f"  [cyan]Gemini is designing a new mechanic  "
             f"[dim](using {len(retrieved)} existing mechanics as context)[/dim]...[/cyan]"
         ):
             with suppress():
                 mechanic = propose_mechanic(skeleton, retrieved,
-                                            stage_prompt=curriculum.stage_prompt(),
+                                            stage_prompt=combined_prompt,
                                             state_description=state_desc,
-                                            banned_names=all_banned)
-
-        if mechanic is None:
-            print_verdict(DISCARD, "—")
+                                        banned_names=all_banned,
+                                        game_type=game_name)
             curriculum.on_discard()
             discarded_count += 1
             continue
@@ -313,10 +315,15 @@ def run_loop(n_iterations: int = 3, top_k: int = 3, game_name: str = DEFAULT_GAM
                 f"[bold]{mechanic['mechanic_name']}[/bold]...[/yellow]"
             ):
                 with suppress():
+                    # Combine curriculum stage prompt with user prompt for revision as well
+                    combined_prompt = curriculum.stage_prompt()
+                    if user_prompt:
+                        combined_prompt = f"{combined_prompt}\n\nUser guidance: {user_prompt}"
                     revised = propose_mechanic(revised_skeleton, revision_ctx,
-                                               stage_prompt=curriculum.stage_prompt(),
+                                               stage_prompt=combined_prompt,
                                                state_description=state_desc,
-                                               banned_names=all_banned)
+                                               banned_names=all_banned,
+                                               game_type=game_name)
 
             if revised is None:
                 print_verdict(DISCARD, mechanic["mechanic_name"])
@@ -395,5 +402,11 @@ if __name__ == "__main__":
         default=DEFAULT_GAME,
         help=f"Which game to design mechanics for (default: {DEFAULT_GAME})"
     )
+    parser.add_argument(
+        "--user-prompt", "-u",
+        type=str,
+        default="",
+        help="Optional user guidance or constraints for mechanic generation (e.g., 'focus on resource management', 'create a tempo mechanic')"
+    )
     args = parser.parse_args()
-    run_loop(n_iterations=args.iterations, top_k=args.top_k, game_name=args.game)
+    run_loop(n_iterations=args.iterations, top_k=args.top_k, game_name=args.game, user_prompt=args.user_prompt)
