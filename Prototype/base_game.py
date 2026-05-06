@@ -1,14 +1,18 @@
 """
 base_game.py
 ============
-The starting board-game skeleton for DesignVoyager.
+The starting game skeleton for DesignVoyager.
 
 A simple two-player grid game: players take turns placing pieces,
 first to get 4 in a row (horizontal, vertical, or diagonal) wins.
 Think Connect-4 but on a flat 6x6 board without gravity.
 
-This implementation now also satisfies DesignVoyager's GameInterface
-so the wider pipeline can treat it the same way as other game types.
+This is the "blank canvas" that the Proposal Module adds mechanics to
+over time.
+
+Now implements GameInterface so the playtester and main loop can treat
+it identically to any other game — no board-specific assumptions needed
+outside this file.
 """
 
 import copy
@@ -30,19 +34,26 @@ class BaseGame(Game, GameInterface):
     """
     Simple 6x6 two-player placement game.
     Win condition: 4 pieces in a row (any direction).
+
+    Inherits from both boardwalk.Game (game engine) and GameInterface
+    (DesignVoyager's abstract contract) so the pipeline can treat it
+    identically to any other plugged-in game.
     """
 
     def __init__(self, board: Board = None, ai_players: dict = None, mechanics: list = None):
         """
         Args:
             board      : optional pre-built Board (default: fresh 6x6 blank board)
-            ai_players : optional dict of {player_int: AIPlayer}
+            ai_players : optional dict of {player_int: AIPlayer/GameAgent}
             mechanics  : list of Python function objects to apply after each move
         """
         if board is None:
             board = Board((BOARD_SIZE, BOARD_SIZE))
         super().__init__(board, ai_players)
-        self.mechanics = mechanics or []   # Extra mechanics to apply each turn
+        self.mechanics           = mechanics or []   # Extra mechanics to apply each turn
+        self.last_move           = None              # (row, col) of the most recent placement
+        self._extra_turn_pending = False             # set by mechanic to grant extra turn
+        self.custom_state        = {}               # persistent scratch space for mechanics
 
     def initial_player(self) -> int:
         return PLAYER_1
@@ -66,35 +77,25 @@ class BaseGame(Game, GameInterface):
         _, (r, c) = get_move_elements(move)
         self.board.place_piece(f"{piece} {r},{c}")
 
+        # Track the most recent placement so mechanics can reference it
+        self.last_move = (r, c)
+
+        # Snapshot state after raw move but before mechanics (for replay diffs)
+        self._state_before_mechanics = self.get_state()
+
         # Apply any mechanics that have been added to this game
         state = self.get_state()
-        self._state_before_mechanics = copy.deepcopy(state)
         for mechanic_fn in self.mechanics:
             try:
                 state = mechanic_fn(state)
-            except Exception:
-                pass   # If a mechanic crashes, skip it gracefully
+            except Exception as e:
+                print(f"  [Mechanic] '{mechanic_fn.__name__}' crashed: {e}")
         # Sync board back from state (mechanics may have modified it)
         self.board.layout = state['board']
-
-    def simulate_move(self, state: dict, move):
-        """
-        Simulate one move from an arbitrary state without mutating the live game.
-        Returns (next_state, ended, winner), where next_state already reflects
-        turn advancement when the game continues.
-        """
-        temp = BaseGame.create(mechanic_fn=None)
-        temp.mechanics = [getattr(fn, "_inner_mechanic", fn) for fn in self.mechanics]
-        temp.board.layout = state["board"].copy()
-        temp.current_player = state["current_player"]
-        temp.turn = state["turn"]
-
-        temp.perform_move(move)
-        ended = temp.game_finished()
-        winner = temp.get_winner() if ended else None
-        if not ended:
-            temp.advance_turn()
-        return temp.get_state(), ended, winner
+        # Respect extra-turn request from mechanics
+        self._extra_turn_pending = bool(state.get('extra_turn', False))
+        # Persist any custom data mechanics stored this turn
+        self.custom_state = dict(state.get('custom_state', {}))
 
     def game_finished(self) -> bool:
         """Game ends if someone has won or the board is full."""
@@ -121,12 +122,12 @@ class BaseGame(Game, GameInterface):
                 for c in range(w):
                     if all(board[r + i, c] == piece for i in range(WIN_LENGTH)):
                         return player
-            # Diagonal ↘
+            # Diagonal down-right
             for r in range(h - WIN_LENGTH + 1):
                 for c in range(w - WIN_LENGTH + 1):
                     if all(board[r + i, c + i] == piece for i in range(WIN_LENGTH)):
                         return player
-            # Diagonal ↗
+            # Diagonal up-right
             for r in range(WIN_LENGTH - 1, h):
                 for c in range(w - WIN_LENGTH + 1):
                     if all(board[r - i, c + i] == piece for i in range(WIN_LENGTH)):
@@ -134,8 +135,11 @@ class BaseGame(Game, GameInterface):
         return None
 
     def get_state(self) -> dict:
-        """Return the standard state dict (board, player, turn)."""
+        """Return the standard state dict (board, player, turn, last_move, extra_turn, custom_state)."""
         state = super().get_state()
+        state['last_move']    = self.last_move        # (row, col) or None
+        state['extra_turn']   = False                 # mechanics set this True to grant another turn
+        state['custom_state'] = dict(self.custom_state)  # persistent mechanic scratch space
         return state
 
     def possible_moves(self, state: dict) -> list:
@@ -164,39 +168,59 @@ class BaseGame(Game, GameInterface):
         )
 
     def get_state_description(self) -> str:
+        """Description of the state dict format, injected into the LLM system prompt."""
         return (
             "The game uses a state dictionary with these keys:\n"
             "  - 'board'          : a 2D numpy array of single characters "
             "('_' = blank, 'X' = player 1, 'O' = player 2)\n"
             "  - 'current_player' : integer (1 or 2)\n"
             "  - 'turn'           : integer turn count\n"
-            "Note: numpy is imported as 'np' inside mechanic functions."
+            "  - 'last_move'      : tuple (row, col) of the most recent piece placement, "
+            "or None on the very first call\n"
+            "  - 'extra_turn'     : boolean, default False. Set to True to give the current "
+            "player an extra turn (they go again immediately instead of the opponent).\n"
+            "  - 'custom_state'   : dict, default {}. Use this to store anything you need to "
+            "remember between turns — scores, token counts, cooldowns, flags, etc. "
+            "Example: game_state['custom_state']['p1_tokens'] = 3. "
+            "This dict persists across every turn of the game.\n"
+            "Note: numpy is imported as 'np' inside mechanic functions.\n"
+            "IMPORTANT: Only use the keys listed above. Do NOT assume any other keys exist."
         )
 
     def get_dummy_state(self) -> dict:
+        """Minimal realistic state for compile-checking mechanics without a full game."""
         state = {
-            'board': np.full((BOARD_SIZE, BOARD_SIZE), '_', dtype='<U1'),
+            'board':          np.full((BOARD_SIZE, BOARD_SIZE), '_', dtype='<U1'),
             'current_player': PLAYER_1,
-            'turn': 1,
+            'turn':           1,
+            'last_move':      (0, 0),
+            'extra_turn':     False,
+            'custom_state':   {},
         }
         state['board'][0, 0] = 'X'
         state['board'][1, 1] = 'O'
         return state
 
+    # ── GameInterface turn management ─────────────────────────────────────────
+
     def is_valid_move(self, move) -> bool:
+        """GameInterface wrapper around boardwalk's validate_move."""
         return self.validate_move(move)
 
     def get_current_agent(self) -> GameAgent:
+        """Return the agent registered for the current player."""
         return self.ai_players[self.current_player]
 
     def advance_turn(self) -> None:
-        self.current_player = self.next_player()
+        """Advance to the next player and increment the turn counter.
+        If a mechanic set extra_turn=True this turn, the same player goes again."""
+        if self._extra_turn_pending:
+            self._extra_turn_pending = False  # consume the flag, player stays the same
+        else:
+            self.current_player = self.next_player()
         self.turn = self.turn_counter()
 
-    def get_coverage_stats(self, state: dict) -> tuple:
-        covered_cells = int(np.count_nonzero(state["board"] != "_"))
-        board_cell_count = int(state["board"].size)
-        return covered_cells, board_cell_count
+    # ── Agent factories (classmethods) ────────────────────────────────────────
 
     @classmethod
     def make_random_agent(cls) -> 'RandomAgent':
@@ -206,17 +230,24 @@ class BaseGame(Game, GameInterface):
     def make_greedy_agent(cls) -> 'GreedyAgent':
         return GreedyAgent()
 
+    # ── Instance factory ──────────────────────────────────────────────────────
+
     @classmethod
     def create(cls, mechanic_fn=None, agent1=None, agent2=None) -> 'BaseGame':
-        agent1 = agent1 or cls.make_random_agent()
-        agent2 = agent2 or cls.make_random_agent()
+        """
+        Factory: create a fresh board game instance.
+        The mechanic (if any) is wrapped in a list as boardwalk expects.
+        """
+        agent1    = agent1 or cls.make_random_agent()
+        agent2    = agent2 or cls.make_random_agent()
         mechanics = [mechanic_fn] if mechanic_fn else []
-        board = Board((BOARD_SIZE, BOARD_SIZE))
-        return cls(board, ai_players={PLAYER_1: agent1, PLAYER_2: agent2}, mechanics=mechanics)
+        board     = Board((BOARD_SIZE, BOARD_SIZE))
+        return cls(board, ai_players={PLAYER_1: agent1, PLAYER_2: agent2},
+                   mechanics=mechanics)
 
 
 # -------------------------------------------------------
-# Simple AI agents (no OpenAI needed — pure Python)
+# Simple AI agents (no API needed — pure Python)
 # -------------------------------------------------------
 
 class RandomAgent(AIPlayer, GameAgent):
@@ -227,7 +258,11 @@ class RandomAgent(AIPlayer, GameAgent):
         return random.choice(moves) if moves else ""
 
     def choose_move(self, game, state: dict, moves: list):
-        return random.choice(moves) if moves else ""
+        # Board game agents delegate choose_move to get_action.
+        # The 'moves' list is ignored here; get_action recomputes it
+        # internally, but the result is identical since possible_moves
+        # is deterministic given the same state.
+        return self.get_action(game, state)
 
 
 class GreedyAgent(AIPlayer, GameAgent):
@@ -268,11 +303,12 @@ class GreedyAgent(AIPlayer, GameAgent):
         return random.choice(moves)
 
     def choose_move(self, game, state: dict, moves: list):
+        # Delegate to get_action which contains the board-specific win/block logic.
         return self.get_action(game, state)
 
 
 def get_skeleton_description() -> str:
-    """Module-level helper so main.py can import it directly."""
+    """Module-level helper so main.py can import it directly (backwards compat)."""
     return BaseGame(Board((BOARD_SIZE, BOARD_SIZE))).get_skeleton_description()
 
 

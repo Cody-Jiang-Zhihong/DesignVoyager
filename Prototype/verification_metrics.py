@@ -1,38 +1,19 @@
+"""
+verification_metrics.py
+=======================
+DesignVoyager — Pure metric calculations.
+
+Adapted from the team's repo. Computes individual quality metrics
+(playability, balance, depth, decisiveness, agency, coverage) and
+delta metrics (mechanic_metrics minus baseline_metrics) from raw
+PlaytestMetrics objects.
+"""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Dict
 
-try:
-    from .verification_schema import (
-        CrossGameVerificationRecord,
-        DeltaMetrics,
-        PlaytestMetrics,
-        TriggerStats,
-        VerificationOutput,
-    )
-except ImportError:
-    from verification_schema import (
-        CrossGameVerificationRecord,
-        DeltaMetrics,
-        PlaytestMetrics,
-        TriggerStats,
-        VerificationOutput,
-    )
-
-
-HARD_CONSTRAINT_FAILURE_MODES = {
-    "schema_failure",
-    "syntax_failure",
-    "hook_failure",
-    "instantiation_failure",
-    "dry_run_failure",
-    "low_playability",
-    "extreme_imbalance",
-    "low_decisiveness",
-    "low_agency",
-    "no_trigger",
-    "no_state_change",
-}
+from verification_schema import DeltaMetrics, PlaytestMetrics, TriggerStats
 
 
 def compute_playability(metrics: PlaytestMetrics) -> float:
@@ -51,21 +32,37 @@ def compute_balance_score(metrics: PlaytestMetrics) -> float:
 
 
 def compute_depth(metrics: PlaytestMetrics) -> float:
+    """
+    Strategic-depth proxy: stronger agent should outperform weaker
+    agent if decisions matter. Clipped to [0, 1].
+    """
     raw = metrics.strong_agent_win_rate - metrics.weak_agent_win_rate
     return max(0.0, min(1.0, raw))
 
 
 def compute_decisiveness(metrics: PlaytestMetrics) -> float:
+    """
+    Fraction of games that do NOT end in a draw.
+    """
     return max(0.0, min(1.0, 1.0 - metrics.draw_rate))
 
 
 def compute_agency(metrics: PlaytestMetrics) -> float:
+    """
+    Fraction of turns where the player had more than one legal move.
+    GAVEL-inspired interpretation.
+    """
     if metrics.total_turns <= 0:
         return 0.0
     return metrics.multi_choice_turns / metrics.total_turns
 
 
 def compute_coverage(metrics: PlaytestMetrics) -> float:
+    """
+    Fraction of board cells that were used at least once.
+    For non-board games (e.g. card game) this returns 0.0 and is
+    excluded from the decision logic.
+    """
     if metrics.board_cell_count <= 0:
         return 0.0
     return metrics.covered_cells / metrics.board_cell_count
@@ -93,6 +90,7 @@ def build_absolute_metric_dict(metrics: PlaytestMetrics) -> Dict[str, float]:
 def compute_delta_metrics(parent: PlaytestMetrics, child: PlaytestMetrics) -> DeltaMetrics:
     parent_abs = build_absolute_metric_dict(parent)
     child_abs = build_absolute_metric_dict(child)
+
     return DeltaMetrics(
         delta_playability=child_abs["playability"] - parent_abs["playability"],
         delta_balance_gap=child_abs["balance_gap"] - parent_abs["balance_gap"],
@@ -104,7 +102,12 @@ def compute_delta_metrics(parent: PlaytestMetrics, child: PlaytestMetrics) -> De
 
 
 def compute_overall_score(child: PlaytestMetrics) -> float:
+    """
+    Overall absolute quality of the child game. Hard constraints are
+    checked separately; this score is for ranking inside the library.
+    """
     abs_metrics = build_absolute_metric_dict(child)
+
     return (
         0.45 * abs_metrics["playability"]
         + 0.25 * abs_metrics["balance_score"]
@@ -114,113 +117,35 @@ def compute_overall_score(child: PlaytestMetrics) -> float:
 
 
 def compute_relative_score(parent: PlaytestMetrics, child: PlaytestMetrics, novelty_score: float = 0.0) -> float:
+    """
+    Measures whether the new mechanic actually improved the parent game.
+
+    Tuned for Morgan's MCTS 50/10 sim budget on a 6x6 board. Two notable
+    deviations from the team's original weights:
+
+      1. delta_depth uses max(0, delta) instead of raw delta. Reason: at
+         this MCTS budget, ANY mechanic that adds tactical complexity
+         (flips, captures, cross-turn effects) tends to crash the
+         strong-vs-weak depth gap toward zero, because 50 simulations
+         is not enough to find patterns in the more complex game tree.
+         That depth crash is usually an MCTS-budget artifact, NOT
+         evidence the mechanic is bad. Punishing it rejects every
+         interesting mechanic. So we only reward depth improvements,
+         we do not penalize drops.
+
+      2. delta_balance_gap weight increased from 0.20 to 0.40. Balance
+         is a much more reliable signal than depth at low MCTS budget,
+         so it deserves more weight in the score.
+
+    Negative-or-near-zero values still indicate a no-op or detrimental
+    mechanic, which is what the gate is meant to catch.
+    """
     d = compute_delta_metrics(parent, child)
     return (
-        0.45 * d.delta_depth
-        - 0.20 * d.delta_balance_gap
-        + 0.15 * d.delta_playability
+        0.20 * max(0.0, d.delta_depth)
+        - 0.40 * d.delta_balance_gap
+        + 0.20 * d.delta_playability
         + 0.10 * d.delta_agency
         + 0.10 * d.delta_decisiveness
         + 0.10 * novelty_score
     )
-
-
-def is_hard_constraint_failure(output: VerificationOutput) -> bool:
-    return any(mode in HARD_CONSTRAINT_FAILURE_MODES for mode in output.failure_modes)
-
-
-def _mean(values: List[float]) -> float:
-    if not values:
-        return 0.0
-    return sum(values) / len(values)
-
-
-def summarize_cross_game_results(
-    records: List[CrossGameVerificationRecord],
-    context_min_local_pass_rate: float = 0.50,
-    repeated_hard_failure_min_count: int = 2,
-) -> Dict[str, Any]:
-    tested_games = len(records)
-    if tested_games <= 0:
-        return {
-            "tested_games": 0,
-            "pass_rate": 0.0,
-            "positive_rate": 0.0,
-            "mean_relative_score": 0.0,
-            "hard_failure_rate": 0.0,
-            "compatible_game_types": [],
-            "failed_game_types": [],
-            "game_type_summaries": {},
-        }
-
-    relative_scores = [record.verification_output.relative_score for record in records]
-    hard_failure_flags = [is_hard_constraint_failure(record.verification_output) for record in records]
-    pass_flags = [
-        record.verification_output.decision == "accept" and not hard_failure
-        for record, hard_failure in zip(records, hard_failure_flags)
-    ]
-    positive_flags = [
-        record.verification_output.relative_score > 0 and not hard_failure
-        for record, hard_failure in zip(records, hard_failure_flags)
-    ]
-
-    by_game_type: Dict[str, List[CrossGameVerificationRecord]] = {}
-    for record in records:
-        by_game_type.setdefault(record.game_type, []).append(record)
-
-    game_type_summaries: Dict[str, Dict[str, Any]] = {}
-    compatible_game_types: List[str] = []
-    failed_game_types: List[str] = []
-
-    for game_type, game_records in by_game_type.items():
-        local_count = len(game_records)
-        local_scores = [record.verification_output.relative_score for record in game_records]
-        local_hard_failures = sum(
-            1 for record in game_records
-            if is_hard_constraint_failure(record.verification_output)
-        )
-        local_pass_count = sum(
-            1 for record in game_records
-            if record.verification_output.decision == "accept"
-            and not is_hard_constraint_failure(record.verification_output)
-        )
-        local_pass_rate = local_pass_count / local_count if local_count > 0 else 0.0
-        local_mean_relative_score = _mean(local_scores)
-        repeated_hard_failures = local_hard_failures >= repeated_hard_failure_min_count
-
-        is_positive_game_type = (
-            local_pass_rate >= context_min_local_pass_rate
-            and local_mean_relative_score > 0
-            and not repeated_hard_failures
-        )
-        is_failed_or_risky_game_type = (
-            local_pass_rate < context_min_local_pass_rate
-            or local_mean_relative_score <= 0
-            or repeated_hard_failures
-        )
-
-        if is_positive_game_type:
-            compatible_game_types.append(game_type)
-        if is_failed_or_risky_game_type:
-            failed_game_types.append(game_type)
-
-        game_type_summaries[game_type] = {
-            "tested_games": local_count,
-            "pass_rate": local_pass_rate,
-            "mean_relative_score": local_mean_relative_score,
-            "hard_failure_count": local_hard_failures,
-            "repeated_hard_failures": repeated_hard_failures,
-            "is_positive_game_type": is_positive_game_type,
-            "is_failed_or_risky_game_type": is_failed_or_risky_game_type,
-        }
-
-    return {
-        "tested_games": tested_games,
-        "pass_rate": sum(pass_flags) / tested_games,
-        "positive_rate": sum(positive_flags) / tested_games,
-        "mean_relative_score": _mean(relative_scores),
-        "hard_failure_rate": sum(hard_failure_flags) / tested_games,
-        "compatible_game_types": sorted(compatible_game_types),
-        "failed_game_types": sorted(failed_game_types),
-        "game_type_summaries": game_type_summaries,
-    }

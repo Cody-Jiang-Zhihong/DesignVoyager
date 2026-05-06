@@ -1,4 +1,0 @@
-# Requirements for DesignVoyager — Proposal Module
-# Install these by running:   pip install -r requirements.txt
-
-openai>=1.0.0
